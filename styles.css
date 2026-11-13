@@ -862,6 +862,7 @@ select {
 .pill-progress { background: var(--progress-bg); color: var(--progress); }
 .pill-improved { background: var(--improved-bg); color: var(--improved); }
 .entry-name { font-weight: 600; color: var(--fg); }
+.entry-name-label { color: var(--fg-muted); font-weight: 500; font-size: 0.82rem; }
 .entry-assignee-chip {
   display: inline-flex;
   align-items: center;

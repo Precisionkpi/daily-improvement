@@ -1644,7 +1644,7 @@
           ${pillHtml}
           ${kindPill}
           ${catPill}
-          <span class="entry-name">${esc(s.name || "—")}</span>
+          <span class="entry-name"><span class="entry-name-label">Submitted By:</span> ${esc(s.name || "—")}</span>
           <span class="entry-date">${esc(date)}</span>
           ${assigneeChip}
         </div>
