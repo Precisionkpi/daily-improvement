@@ -2023,6 +2023,14 @@
   function openCompleteModal(id) {
     const entry = STATE.submissions.find((s) => s.id === id);
     if (!entry) return;
+    // Gate: if this entry has a checklist, all items must be checked first.
+    if (Array.isArray(entry.checklist) && entry.checklist.length > 0) {
+      const remaining = entry.checklist.filter((i) => !i.done).length;
+      if (remaining > 0) {
+        showToast(`Finish the checklist first — ${remaining} item${remaining === 1 ? "" : "s"} left.`);
+        return;
+      }
+    }
 
     const backdrop = document.createElement("div");
     backdrop.className = "modal-backdrop";
