@@ -1609,6 +1609,10 @@
       }
     } else if (isAssignee && status === "assigned") {
       buttons.push(`<button class="btn" data-complete="${esc(s.id)}" style="background:var(--improved);">Mark complete</button>`);
+    } else if (STATE.name && status === "open") {
+      buttons.push(`<button class="btn" data-assign="${esc(s.id)}" style="background:var(--progress);">Assign</button>`);
+    } else if (STATE.name && status === "assigned") {
+      buttons.push(`<button class="btn btn-ghost" data-assign="${esc(s.id)}">Reassign</button>`);
     }
     if (buttons.length) actions = `<div class="entry-actions">${buttons.join("")}</div>`;
 
