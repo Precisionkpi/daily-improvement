@@ -26,6 +26,7 @@
     "Stephanie McLarty",
     "Emily Leitzel",
     "Kristina Gadiaga",
+    "Nico Gianni",
   ];
   const CATEGORIES = [
     { code: "equipment",  label: "Equipment",  emoji: "🔧" },
