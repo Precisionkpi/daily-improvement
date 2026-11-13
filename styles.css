@@ -862,6 +862,20 @@ select {
 .pill-progress { background: var(--progress-bg); color: var(--progress); }
 .pill-improved { background: var(--improved-bg); color: var(--improved); }
 .entry-name { font-weight: 600; color: var(--fg); }
+.entry-assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--progress-bg);
+  color: var(--progress);
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex-basis: 100%;
+  margin-top: 2px;
+}
 .entry-date { color: var(--fg-faint); font-size: 0.82rem; }
 .entry-date::before { content: "·"; margin: 0 2px; color: var(--fg-faint); }
 .entry-problem-box {

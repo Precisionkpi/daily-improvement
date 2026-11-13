@@ -1565,6 +1565,11 @@
     const date = s.createdAt ? formatDate(s.createdAt) : "";
     const isNew = s.createdAt && (Date.now() - new Date(s.createdAt).getTime() < 60000) && (new Date(s.createdAt).getTime() > STATE.bootedAt);
 
+    const assigneesForHead = getAssignees(s);
+    const assigneeChip = status === "assigned" && assigneesForHead.length > 0
+      ? `<span class="entry-assignee-chip">👉 ${esc(formatAssignees(assigneesForHead))}</span>`
+      : "";
+
     const problemPhotos = renderPhotoGrid(s.problemPhotos);
     const solutionPhotos = renderPhotoGrid(s.solutionPhotos);
 
@@ -1641,6 +1646,7 @@
           ${catPill}
           <span class="entry-name">${esc(s.name || "—")}</span>
           <span class="entry-date">${esc(date)}</span>
+          ${assigneeChip}
         </div>
         <div class="entry-problem-box ${isImpact ? "is-impact" : ""}">
           <span class="entry-problem-label">${isImpact ? "The move" : "The problem"}</span>
