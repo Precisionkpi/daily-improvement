@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#2E5D3B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="One Daily Improvement">
+  <title>One Daily Improvement</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="brand-mark">1</div>
+        <h1>One Daily Improvement</h1>
+        <button class="notif-btn" id="notif-btn" aria-label="Toggle alerts">🔔</button>
+      </div>
+      <p class="subtitle">Each day: one thing that made it difficult, or one move that pushes us forward.</p>
+      <div class="stats" id="stats">
+        <button class="stat" type="button" data-statfilter="week"><span class="stat-num" id="stat-week">—</span><span class="stat-label">This week</span></button>
+        <button class="stat" type="button" data-statfilter="progress"><span class="stat-num" id="stat-progress">—</span><span class="stat-label">In progress</span></button>
+        <button class="stat" type="button" data-statfilter="improved"><span class="stat-num" id="stat-improved">—</span><span class="stat-label">Improved</span></button>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" aria-selected="false" data-tab="submit" id="tab-submit">Submit</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="mine" id="tab-mine">Mine</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="everyone" id="tab-everyone">Feed</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="assignments" id="tab-assignments">Scoreboard</button>
+    </div>
+
+    <section id="panel-submit" role="tabpanel" aria-labelledby="tab-submit" hidden></section>
+    <section id="panel-mine" role="tabpanel" aria-labelledby="tab-mine"></section>
+    <section id="panel-everyone" role="tabpanel" aria-labelledby="tab-everyone" hidden></section>
+    <section id="panel-assignments" role="tabpanel" aria-labelledby="tab-assignments" hidden></section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
