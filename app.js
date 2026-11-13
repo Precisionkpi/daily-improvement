@@ -96,12 +96,42 @@
     STATE.isOwner = !!(STATE.name && cfg.owner && STATE.name === cfg.owner);
     STATE.canWrite = true;
 
+    renderWelcomeScreen();
     render();
     wireTabs();
     wireNotifBtn();
 
     await loadAll();
     subscribeRealtime();
+  }
+
+  function renderWelcomeScreen() {
+    const host = document.getElementById("welcome-names");
+    const screen = document.getElementById("welcome-screen");
+    if (!host || !screen) return;
+    host.innerHTML = NAMES.map((n) => `<button type="button" class="welcome-name-btn" data-welcomepick="${esc(n)}">${esc(n)}</button>`).join("");
+    host.querySelectorAll("[data-welcomepick]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        STATE.name = btn.dataset.welcomepick;
+        saveStoredName(STATE.name);
+        STATE.isOwner = !!(cfg && cfg.owner && STATE.name === cfg.owner);
+        syncWelcomeVisibility();
+        render();
+      });
+    });
+    syncWelcomeVisibility();
+  }
+  function syncWelcomeVisibility() {
+    const screen = document.getElementById("welcome-screen");
+    const app = document.querySelector(".app");
+    if (!screen || !app) return;
+    if (!STATE.name) {
+      screen.hidden = false;
+      app.style.display = "none";
+    } else {
+      screen.hidden = true;
+      app.style.display = "";
+    }
   }
 
   // ---- DB <-> app shape converters (snake_case columns in Postgres) ----
@@ -480,6 +510,7 @@
     if (changeBtn) changeBtn.addEventListener("click", () => {
       STATE.name = "";
       saveStoredName("");
+      syncWelcomeVisibility();
       render();
     });
 
@@ -684,6 +715,7 @@
     if (change) change.addEventListener("click", () => {
       STATE.name = "";
       saveStoredName("");
+      syncWelcomeVisibility();
       render();
     });
   }
@@ -1598,9 +1630,8 @@
         buttons.push(`<button class="btn btn-ghost" data-undo="${esc(s.id)}">Undo improved</button>`);
         buttons.push(`<button class="btn btn-ghost" data-del="${esc(s.id)}" style="color:var(--danger);">Delete</button>`);
       }
-    } else if (isAssignee && effectiveStatus === "assigned") {
-      buttons.push(`<button class="btn" data-complete="${esc(s.id)}" style="background:var(--improved);">Mark complete</button>`);
     } else if (STATE.name && effectiveStatus === "assigned") {
+      buttons.push(`<button class="btn" data-complete="${esc(s.id)}" style="background:var(--improved);">Mark complete</button>`);
       buttons.push(`<button class="btn btn-ghost" data-assign="${esc(s.id)}">Reassign</button>`);
     }
     if (buttons.length) actions = `<div class="entry-actions">${buttons.join("")}</div>`;

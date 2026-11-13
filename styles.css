@@ -1646,6 +1646,93 @@ select {
 }
 .workload-row.is-me .workload-num { background: var(--primary); color: var(--primary-ink); }
 
+/* Welcome / name-picker overlay */
+.welcome-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, var(--bg) 0%, var(--primary-tint) 100%);
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 24px max(16px, env(safe-area-inset-left, 0px)) calc(32px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.welcome-content {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+.welcome-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.welcome-brand .brand-mark {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  border-radius: 12px;
+}
+.welcome-brand h1 {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+.welcome-company {
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 36px;
+}
+.welcome-prompt {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--fg);
+}
+.welcome-sub {
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+  margin: 0 0 24px;
+}
+.welcome-names {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.welcome-name-btn {
+  padding: 18px 12px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: var(--shadow-sm);
+}
+.welcome-name-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+.welcome-name-btn:active { transform: translateY(0); }
+.welcome-footer {
+  margin-top: 28px;
+  font-size: 0.8rem;
+  color: var(--fg-faint);
+}
+
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
