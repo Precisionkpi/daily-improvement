@@ -1365,12 +1365,21 @@
 
     const paintRows = () => {
       host.innerHTML = draft.items.map((it, idx) => `
-        <div class="list-editor-row">
+        <div class="check-editor-row">
           <input type="text" value="${esc(it.label || "")}" data-idx="${idx}" placeholder="e.g. Earmuffs for Matt" maxlength="120" />
-          <button type="button" data-rm="${idx}" aria-label="Remove">×</button>
+          <div class="check-editor-sub">
+            <select data-aidx="${idx}">
+              <option value="">— unassigned —</option>
+              ${NAMES.map((n) => `<option value="${esc(n)}" ${n === it.assignee ? "selected" : ""}>${esc(n)}</option>`).join("")}
+            </select>
+            <button type="button" data-rm="${idx}" aria-label="Remove">×</button>
+          </div>
         </div>`).join("");
-      host.querySelectorAll("input").forEach((inp) => {
+      host.querySelectorAll("input[data-idx]").forEach((inp) => {
         inp.addEventListener("input", () => { draft.items[Number(inp.dataset.idx)].label = inp.value; });
+      });
+      host.querySelectorAll("select[data-aidx]").forEach((sel) => {
+        sel.addEventListener("change", () => { draft.items[Number(sel.dataset.aidx)].assignee = sel.value || null; });
       });
       host.querySelectorAll("[data-rm]").forEach((b) => {
         b.addEventListener("click", () => { draft.items.splice(Number(b.dataset.rm), 1); paintRows(); });
@@ -1658,6 +1667,7 @@
     const doneCount = items.filter((i) => i.done).length;
     const rows = items.map((it) => {
       const metaBits = [];
+      if (!it.done && it.assignee) metaBits.push(`<span class="check-assignee">→ ${esc(it.assignee)}</span>`);
       if (it.done && it.doneBy) metaBits.push(esc(it.doneBy));
       if (it.done && it.doneAt) metaBits.push(esc(formatDate(it.doneAt)));
       const meta = metaBits.length ? `<span class="check-meta">${metaBits.join(" · ")}</span>` : "";
@@ -1957,10 +1967,9 @@
     const entry = STATE.submissions.find((s) => s.id === id);
     if (!entry) return;
     const current = getAssignees(entry);
-    const currentA = current[0] || "";
-    const currentB = current[1] || "";
     const currentNote = entry.assignmentNote || "";
     const hasAny = current.length > 0;
+    const draft = { assignees: current.length ? current.slice() : [""] };
 
     const backdrop = document.createElement("div");
     backdrop.className = "modal-backdrop";
@@ -1970,17 +1979,8 @@
         <p><strong>${esc(entry.name)}:</strong> ${esc((entry.problem || "").slice(0, 120))}${(entry.problem || "").length > 120 ? "…" : ""}</p>
         <div class="field">
           <label>Who's working on it?</label>
-          <select id="assign-to">
-            <option value="" disabled ${currentA ? "" : "selected"}>— choose —</option>
-            ${NAMES.map((n) => `<option value="${esc(n)}" ${n === currentA ? "selected" : ""}>${esc(n)}</option>`).join("")}
-          </select>
-        </div>
-        <div class="field">
-          <label>Second person <span class="optional">(optional)</span></label>
-          <select id="assign-to-2">
-            <option value="" ${currentB ? "" : "selected"}>— nobody else —</option>
-            ${NAMES.map((n) => `<option value="${esc(n)}" ${n === currentB ? "selected" : ""}>${esc(n)}</option>`).join("")}
-          </select>
+          <div class="list-editor" id="assign-rows"></div>
+          <button type="button" class="list-editor-add" id="assign-add">+ Add another person</button>
         </div>
         <div class="field">
           <label>What should they do? <span class="optional">(optional)</span></label>
@@ -1992,21 +1992,46 @@
         </div>
       </div>`;
     document.body.appendChild(backdrop);
+    const host = backdrop.querySelector("#assign-rows");
+
+    const paintRows = () => {
+      host.innerHTML = draft.assignees.map((picked, idx) => {
+        const canRemove = draft.assignees.length > 1;
+        return `<div class="list-editor-row">
+          <select data-aidx="${idx}">
+            <option value="" disabled ${picked ? "" : "selected"}>— choose —</option>
+            ${NAMES.map((n) => `<option value="${esc(n)}" ${n === picked ? "selected" : ""}>${esc(n)}</option>`).join("")}
+          </select>
+          ${canRemove ? `<button type="button" data-armrm="${idx}" aria-label="Remove">×</button>` : ""}
+        </div>`;
+      }).join("");
+      host.querySelectorAll("select[data-aidx]").forEach((sel) => {
+        sel.addEventListener("change", () => { draft.assignees[Number(sel.dataset.aidx)] = sel.value; });
+      });
+      host.querySelectorAll("[data-armrm]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          draft.assignees.splice(Number(btn.dataset.armrm), 1);
+          paintRows();
+        });
+      });
+    };
+    paintRows();
 
     const close = () => backdrop.remove();
     backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
     backdrop.querySelector("#a-cancel").addEventListener("click", close);
+    backdrop.querySelector("#assign-add").addEventListener("click", () => {
+      draft.assignees.push("");
+      paintRows();
+    });
     backdrop.querySelector("#a-save").addEventListener("click", async () => {
-      const a = backdrop.querySelector("#assign-to").value;
-      const b = backdrop.querySelector("#assign-to-2").value;
+      const list = Array.from(new Set(draft.assignees.filter(Boolean)));
       const note = backdrop.querySelector("#assign-note").value.trim();
-      if (!a) { showToast("Pick someone first."); return; }
-      if (b && b === a) { showToast("Pick two different people."); return; }
-      const list = b ? [a, b] : [a];
+      if (list.length === 0) { showToast("Pick at least one person."); return; }
       close();
       await assignTo(id, list, note);
     });
-    setTimeout(() => backdrop.querySelector("#assign-to")?.focus(), 50);
+    setTimeout(() => host.querySelector("select")?.focus(), 50);
   }
 
   async function assignTo(id, assigneeList, note) {

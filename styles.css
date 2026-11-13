@@ -1079,6 +1079,46 @@ select {
   margin-left: 6px;
   white-space: nowrap;
 }
+.check-assignee { color: var(--progress); font-weight: 600; }
+
+.check-editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+.check-editor-row > input {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 0.9rem;
+}
+.check-editor-sub {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.check-editor-sub select {
+  flex: 1;
+  font-size: 0.84rem;
+  padding: 5px 8px;
+}
+.check-editor-sub button {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--fg-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.check-editor-sub button:hover { color: var(--danger); border-color: var(--danger); }
 
 /* Related entries */
 .related-row {
