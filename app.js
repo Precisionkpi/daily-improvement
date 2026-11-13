@@ -1567,7 +1567,7 @@
 
     const assigneesForHead = getAssignees(s);
     const assigneeChip = status === "assigned" && assigneesForHead.length > 0
-      ? `<span class="entry-assignee-chip">👉 ${esc(formatAssignees(assigneesForHead))}</span>`
+      ? `<span class="entry-assignee-chip">Assigned To 👉 ${esc(formatAssignees(assigneesForHead))}</span>`
       : "";
 
     const problemPhotos = renderPhotoGrid(s.problemPhotos);
