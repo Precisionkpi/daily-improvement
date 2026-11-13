@@ -62,7 +62,7 @@
     updates: [],
     loading: true,
     loadError: null,
-    activeTab: "mine",
+    activeTab: "submit",
     filter: "all",
     name: readStoredName(),
     pending: false,
