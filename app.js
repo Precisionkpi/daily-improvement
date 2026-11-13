@@ -1415,9 +1415,20 @@
         ? { ...it, done: true, doneBy: STATE.name, doneAt: new Date().toISOString() }
         : { ...it, done: false, doneBy: null, doneAt: null };
     });
+    const allDone = items.length > 0 && items.every((i) => i.done);
+    const shouldAutoComplete = allDone && entry.status !== "improved";
+    const payload = { checklist: items };
+    if (shouldAutoComplete) {
+      const now = new Date().toISOString();
+      payload.status = "improved";
+      payload.improved_by = STATE.name;
+      payload.improved_at = now;
+      payload.improved_note = "All checklist items completed.";
+    }
     try {
-      const { error } = await sb.from("submissions").update({ checklist: items }).eq("id", entryId);
+      const { error } = await sb.from("submissions").update(payload).eq("id", entryId);
       if (error) throw error;
+      if (shouldAutoComplete) showToast("✓ All checked off — marked complete!");
     } catch (e) { console.error(e); showToast("Couldn't update."); }
   }
 
