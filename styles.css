@@ -910,6 +910,28 @@ select {
   font-weight: 600;
   line-height: 1.4;
 }
+.entry-problem-headline { font-size: 1rem; font-weight: 700; }
+.entry-problem-toggle {
+  background: transparent;
+  border: 0;
+  color: var(--open);
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 4px 0 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.entry-problem-box.is-impact .entry-problem-toggle { color: var(--primary); }
+.entry-problem-toggle:hover { text-decoration: underline; }
+.entry-problem-rest {
+  margin-top: 4px;
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.45;
+}
 
 .entry-photos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .entry-photo {

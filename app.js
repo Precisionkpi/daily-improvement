@@ -1293,6 +1293,16 @@
         toggleChecklistItem(entryId, itemId);
       });
     });
+    root.querySelectorAll("[data-probtoggle]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.probtoggle;
+        const rest = root.querySelector(`[data-probrest="${CSS.escape(id)}"]`);
+        if (!rest) return;
+        const showing = !rest.hidden;
+        rest.hidden = showing;
+        btn.textContent = showing ? "Read more ▾" : "Show less ▴";
+      });
+    });
     root.querySelectorAll("[data-openrelated]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const target = STATE.submissions.find((x) => x.id === btn.dataset.openrelated);
@@ -1556,6 +1566,28 @@
     }).join("");
   }
 
+  function splitProblem(text) {
+    const clean = (text || "").trim();
+    if (!clean) return { headline: "", rest: "" };
+    const m = clean.match(/^(.{20,100}?[.!?])(\s+|$)/);
+    let headline = m ? m[1].trim() : "";
+    if (!headline || headline.length > 110) {
+      headline = clean.slice(0, 100);
+      const sp = headline.lastIndexOf(" ");
+      if (sp > 50) headline = headline.slice(0, sp);
+      if (headline.length < clean.length) headline = headline.replace(/[.,;:—-]*$/, "") + "…";
+    }
+    const rest = clean.slice(headline.replace(/…$/, "").length).trim();
+    return { headline, rest };
+  }
+  function renderProblemText(s) {
+    const { headline, rest } = splitProblem(s.problem || "");
+    if (!rest) return `<div class="entry-problem">${esc(headline)}</div>`;
+    return `<div class="entry-problem entry-problem-headline">${esc(headline)}</div>
+      <button type="button" class="entry-problem-toggle" data-probtoggle="${esc(s.id)}">Read more ▾</button>
+      <div class="entry-problem-rest" data-probrest="${esc(s.id)}" hidden>${esc(rest)}</div>`;
+  }
+
   function renderEntry(s) {
     const status = s.status || "open";
     const kind = s.kind || "difficult";
@@ -1657,7 +1689,7 @@
         </div>
         <div class="entry-problem-box ${isImpact ? "is-impact" : ""}">
           <span class="entry-problem-label">${isImpact ? "The move" : "The problem"}</span>
-          <div class="entry-problem">${esc(s.problem || "")}</div>
+          ${renderProblemText(s)}
         </div>
         ${problemPhotos}
         ${impactSection}
