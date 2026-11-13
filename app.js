@@ -68,7 +68,7 @@
     pending: false,
     formPhotos: { problem: [], solution: [] },
     submitKind: "difficult",
-    submitStatus: "open",
+    submitStatus: "assigned",
     submitCategory: "other",
     submitAssignees: ["", ""],
     openCommentThread: null,
@@ -335,7 +335,7 @@
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const weekCount = subs.filter((s) => s.createdAt && new Date(s.createdAt) >= weekAgo).length;
-    const inProgressCount = subs.filter((s) => s.status === "assigned").length;
+    const inProgressCount = subs.filter((s) => s.status !== "improved").length;
     const improvedCount = subs.filter((s) => s.status === "improved").length;
     document.getElementById("stat-week").textContent = STATE.loading ? "—" : weekCount;
     document.getElementById("stat-progress").textContent = STATE.loading ? "—" : inProgressCount;
@@ -455,7 +455,6 @@
         <div class="field">
           <label>Status</label>
           <div class="status-choice" role="radiogroup" aria-label="Status">
-            <button type="button" class="status-opt" data-status="open" aria-pressed="${STATE.submitStatus === 'open'}">Just logging</button>
             <button type="button" class="status-opt" data-status="assigned" aria-pressed="${STATE.submitStatus === 'assigned'}">In progress</button>
             <button type="button" class="status-opt" data-status="improved" aria-pressed="${STATE.submitStatus === 'improved'}">${isImpact ? 'Completed' : 'Solved'}</button>
           </div>
@@ -542,9 +541,8 @@
 
   function submitButtonLabel() {
     const isImpact = STATE.submitKind === "impact";
-    if (STATE.submitStatus === "assigned") return isImpact ? "Log — working on it" : "Log — I'm working on it";
     if (STATE.submitStatus === "improved") return isImpact ? "Log — completed ✓" : "Log — already solved";
-    return isImpact ? "Log today's impact move" : "Log today's one thing";
+    return isImpact ? "Log — working on it" : "Log — I'm working on it";
   }
 
   function renderFormPhotos() {
@@ -645,10 +643,8 @@
     const me = STATE.name;
     const firstName = me.split(" ")[0];
     const assignedToMe = STATE.submissions
-      .filter(s => s.status === "assigned" && getAssignees(s).includes(me))
+      .filter(s => s.status !== "improved" && getAssignees(s).includes(me))
       .sort((a, b) => new Date(b.assignedAt || b.createdAt || 0) - new Date(a.assignedAt || a.createdAt || 0));
-    const myOpen = STATE.submissions
-      .filter(s => (!s.status || s.status === "open") && s.name === me);
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const myRecentWins = STATE.submissions
       .filter(s => s.status === "improved" && s.improvedBy === me && s.improvedAt && new Date(s.improvedAt).getTime() >= weekAgo)
@@ -668,17 +664,12 @@
         <p class="mine-hero-sub">${heroSub} <button class="link-btn" id="change-name-mine">Not you?</button></p>
       </div>`;
 
-    if (assignedToMe.length === 0 && myOpen.length === 0 && myRecentWins.length === 0) {
+    if (assignedToMe.length === 0 && myRecentWins.length === 0) {
       body += `<div class="empty"><div class="empty-title">All clear 🌿</div><p>Nothing's on your plate. Nice work — check <strong>Feed</strong> to see what the crew's up to.</p></div>`;
     } else {
       if (assignedToMe.length > 0) {
         body += `<div class="section-head">On your plate <span class="count">${assignedToMe.length}</span></div>`;
         body += `<div class="entries">${assignedToMe.map(renderEntry).join("")}</div>`;
-      }
-
-      if (myOpen.length > 0) {
-        body += `<div class="section-head">You logged — still open <span class="count">${myOpen.length}</span></div>`;
-        body += `<div class="entries">${myOpen.map(renderEntry).join("")}</div>`;
       }
 
       if (myRecentWins.length > 0) {
@@ -730,8 +721,7 @@
         ${assigneeChip}
         <button class="chip" aria-pressed="${STATE.filter === 'all'}" data-f="all">All (${subs.length})</button>
         <button class="chip" aria-pressed="${STATE.filter === 'week'}" data-f="week">This week (${weekCount})</button>
-        <button class="chip" aria-pressed="${STATE.filter === 'open'}" data-f="open">Open (${subs.filter(s=>!s.status || s.status==='open').length})</button>
-        <button class="chip" aria-pressed="${STATE.filter === 'progress'}" data-f="progress">In progress (${subs.filter(s=>s.status==='assigned').length})</button>
+        <button class="chip" aria-pressed="${STATE.filter === 'progress'}" data-f="progress">In progress (${subs.filter(s=>s.status!=='improved').length})</button>
         <button class="chip" aria-pressed="${STATE.filter === 'improved'}" data-f="improved">Improved (${subs.filter(s=>s.status==='improved').length})</button>
         <button class="chip" aria-pressed="${STATE.filter === 'mine'}" data-f="mine">Just mine</button>
         <button class="chip" aria-pressed="${STATE.filter === 'byperson'}" data-f="byperson">By person</button>
@@ -765,11 +755,10 @@
     }
     if (STATE.loading) { panel.innerHTML = `<div class="loading">Loading…</div>`; return; }
 
-    const assigned = STATE.submissions.filter((s) => s.status === "assigned");
-    const open = STATE.submissions.filter((s) => !s.status || s.status === "open");
+    const assigned = STATE.submissions.filter((s) => s.status !== "improved");
     const improved = STATE.submissions.filter((s) => s.status === "improved");
 
-    if (assigned.length === 0 && open.length === 0 && improved.length === 0 && STATE.submissions.length === 0) {
+    if (assigned.length === 0 && improved.length === 0 && STATE.submissions.length === 0) {
       panel.innerHTML = `<div class="empty"><div class="empty-title">Nothing to do yet</div><p>Entries appear here once they're logged.</p></div>`;
       return;
     }
@@ -816,11 +805,6 @@
         body += `<div class="by-person">${esc(person)} · ${items.length}</div>`;
         body += `<div class="entries">${items.map(renderEntry).join("")}</div>`;
       }
-    }
-
-    if (open.length > 0) {
-      body += `<div class="section-head">${STATE.isOwner ? "Open — needs assigning" : "Open"} <span class="count">${open.length}</span></div>`;
-      body += `<div class="entries">${open.map(renderEntry).join("")}</div>`;
     }
 
     panel.innerHTML = body;
@@ -1505,8 +1489,7 @@
 
   function filteredSubs() {
     let list = STATE.submissions.slice();
-    if (STATE.filter === "open") list = list.filter((s) => !s.status || s.status === "open");
-    else if (STATE.filter === "progress") list = list.filter((s) => s.status === "assigned");
+    if (STATE.filter === "progress") list = list.filter((s) => s.status !== "improved");
     else if (STATE.filter === "improved") list = list.filter((s) => s.status === "improved");
     else if (STATE.filter === "week") {
       const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -1545,15 +1528,14 @@
     const kind = s.kind || "difficult";
     const isImpact = kind === "impact";
 
+    const effectiveStatus = status === "improved" ? "improved" : "assigned";
     let statusLabel;
-    if (status === "improved") statusLabel = isImpact ? "Completed" : "Improved";
-    else if (status === "assigned") statusLabel = "In progress";
-    else statusLabel = "Open";
+    if (effectiveStatus === "improved") statusLabel = isImpact ? "Completed" : "Improved";
+    else statusLabel = "In progress";
 
     let pillHtml;
-    if (status === "improved") pillHtml = `<span class="pill pill-improved">${statusLabel}</span>`;
-    else if (status === "assigned") pillHtml = `<span class="pill pill-progress">${statusLabel}</span>`;
-    else pillHtml = `<span class="pill pill-open">${statusLabel}</span>`;
+    if (effectiveStatus === "improved") pillHtml = `<span class="pill pill-improved">${statusLabel}</span>`;
+    else pillHtml = `<span class="pill pill-progress">${statusLabel}</span>`;
 
     const kindPill = isImpact
       ? `<span class="pill pill-kind-impact">💡 Impact</span>`
@@ -1566,7 +1548,7 @@
     const isNew = s.createdAt && (Date.now() - new Date(s.createdAt).getTime() < 60000) && (new Date(s.createdAt).getTime() > STATE.bootedAt);
 
     const assigneesForHead = getAssignees(s);
-    const assigneeChip = status === "assigned" && assigneesForHead.length > 0
+    const assigneeChip = effectiveStatus === "assigned" && assigneesForHead.length > 0
       ? `<span class="entry-assignee-chip">Assigned To 👉 ${esc(formatAssignees(assigneesForHead))}</span>`
       : "";
 
@@ -1590,7 +1572,7 @@
     const relatedRow = renderRelated(s);
 
     const assignees = getAssignees(s);
-    const assignedSection = status === "assigned"
+    const assignedSection = effectiveStatus === "assigned" && assignees.length > 0
       ? `<div class="entry-section assigned"><span class="entry-section-label">Assigned to ${esc(formatAssignees(assignees))}</span><div class="section-body">${s.assignmentNote ? esc(s.assignmentNote) : "No instructions yet."}</div><div class="meta">Assigned${s.assignedBy ? " by " + esc(s.assignedBy) : ""}${s.assignedAt ? " · " + formatDate(s.assignedAt) : ""}</div></div>`
       : "";
 
@@ -1608,24 +1590,17 @@
     const buttons = [];
     const isAssignee = isAssignedToMe(s);
     if (STATE.isOwner) {
-      if (status === "open") {
-        buttons.push(`<button class="btn" data-assign="${esc(s.id)}" style="background:var(--progress);">Assign</button>`);
-        buttons.push(`<button class="btn btn-ghost" data-complete="${esc(s.id)}">Mark improved</button>`);
-        buttons.push(`<button class="btn btn-ghost" data-del="${esc(s.id)}" style="color:var(--danger);">Delete</button>`);
-      } else if (status === "assigned") {
+      if (effectiveStatus === "assigned") {
         buttons.push(`<button class="btn btn-ghost" data-assign="${esc(s.id)}">Reassign</button>`);
         buttons.push(`<button class="btn btn-ghost" data-complete="${esc(s.id)}">Mark improved</button>`);
-        buttons.push(`<button class="btn btn-ghost" data-reopen="${esc(s.id)}">Back to open</button>`);
         buttons.push(`<button class="btn btn-ghost" data-del="${esc(s.id)}" style="color:var(--danger);">Delete</button>`);
-      } else if (status === "improved") {
+      } else if (effectiveStatus === "improved") {
         buttons.push(`<button class="btn btn-ghost" data-undo="${esc(s.id)}">Undo improved</button>`);
         buttons.push(`<button class="btn btn-ghost" data-del="${esc(s.id)}" style="color:var(--danger);">Delete</button>`);
       }
-    } else if (isAssignee && status === "assigned") {
+    } else if (isAssignee && effectiveStatus === "assigned") {
       buttons.push(`<button class="btn" data-complete="${esc(s.id)}" style="background:var(--improved);">Mark complete</button>`);
-    } else if (STATE.name && status === "open") {
-      buttons.push(`<button class="btn" data-assign="${esc(s.id)}" style="background:var(--progress);">Assign</button>`);
-    } else if (STATE.name && status === "assigned") {
+    } else if (STATE.name && effectiveStatus === "assigned") {
       buttons.push(`<button class="btn btn-ghost" data-assign="${esc(s.id)}">Reassign</button>`);
     }
     if (buttons.length) actions = `<div class="entry-actions">${buttons.join("")}</div>`;
@@ -1810,9 +1785,7 @@
       showToast("Pick two different people for the second assignee.");
       return;
     }
-    let status = STATE.submitStatus || "open";
-    // If they picked assignees but left status on "open", upgrade to "assigned"
-    if (assignees.length > 0 && status === "open") status = "assigned";
+    let status = STATE.submitStatus === "improved" ? "improved" : "assigned";
 
     if (!name) { nameSelect?.focus(); return; }
     if (!NAMES.includes(name)) { showToast("Pick your name from the list."); return; }
@@ -1880,7 +1853,7 @@
       saveStoredName(name);
       STATE.formPhotos = { problem: [], solution: [] };
       const wasImpact = STATE.submitKind === "impact";
-      STATE.submitStatus = "open";
+      STATE.submitStatus = "assigned";
       STATE.submitKind = "difficult";
       STATE.submitCategory = "other";
       STATE.submitAssignees = ["", ""];
