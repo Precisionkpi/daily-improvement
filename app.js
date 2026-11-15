@@ -497,8 +497,10 @@
     const draft = captureCommentDraft();
     if (STATE.activeTab === "mine") renderMine();
     else if (STATE.activeTab === "assignments") renderAssignments();
+    else if (STATE.activeTab === "inbox") renderInbox();
     else renderEveryone();
     if (draft) restoreCommentDraft(draft);
+    paintInboxBadge();
   }
 
   function captureCommentDraft() {
@@ -568,6 +570,7 @@
     });
     document.getElementById("panel-mine").hidden = t !== "mine";
     document.getElementById("panel-submit").hidden = t !== "submit";
+    document.getElementById("panel-inbox").hidden = t !== "inbox";
     document.getElementById("panel-assignments").hidden = t !== "assignments";
     document.getElementById("panel-everyone").hidden = t !== "everyone";
   }
@@ -935,6 +938,198 @@
     panel.querySelectorAll(".chip").forEach((chip) => {
       chip.addEventListener("click", () => { STATE.filter = chip.dataset.f; render(); });
     });
+  }
+
+  // ---- Inbox ----
+  // Shows comments, nudges, updates, and status changes on entries where the
+  // current user is the submitter or an assignee. "Unread" = created after the
+  // user's last-read timestamp (per-device, in localStorage).
+
+  function readLastInboxRead() {
+    try {
+      const v = localStorage.getItem("don:inboxRead:" + STATE.name);
+      return v ? Number(v) : 0;
+    } catch { return 0; }
+  }
+  function saveLastInboxRead(ts) {
+    try { localStorage.setItem("don:inboxRead:" + STATE.name, String(ts)); } catch {}
+  }
+
+  function collectInboxItems() {
+    if (!STATE.name) return [];
+    const me = STATE.name;
+    const relevantEntries = new Map();
+    for (const s of STATE.submissions) {
+      const assignees = getAssignees(s);
+      const iSubmitted = s.name === me;
+      const iAssigned = assignees.includes(me);
+      if (iSubmitted || iAssigned) {
+        relevantEntries.set(s.id, { entry: s, role: iSubmitted ? "submitter" : "assignee" });
+      }
+    }
+    const items = [];
+    for (const c of STATE.comments) {
+      const hit = relevantEntries.get(c.entryId);
+      if (!hit) continue;
+      if (c.author === me) continue; // skip my own comments
+      items.push({
+        kind: c.author === "Claude" ? "nudge" : "comment",
+        entry: hit.entry,
+        role: hit.role,
+        who: c.author,
+        text: c.text,
+        at: new Date(c.createdAt).getTime(),
+        id: c.id,
+      });
+    }
+    for (const u of STATE.updates) {
+      const hit = relevantEntries.get(u.entryId);
+      if (!hit) continue;
+      if (u.author === me) continue;
+      items.push({
+        kind: "update",
+        entry: hit.entry,
+        role: hit.role,
+        who: u.author,
+        text: u.text,
+        at: new Date(u.createdAt).getTime(),
+        id: u.id,
+      });
+    }
+    // Status change: entry marked improved by someone else, after creation
+    for (const [, { entry, role }] of relevantEntries) {
+      if (entry.status === "improved" && entry.improvedBy && entry.improvedBy !== me && entry.improvedAt) {
+        items.push({
+          kind: "improved",
+          entry,
+          role,
+          who: entry.improvedBy,
+          text: entry.improvedNote || "",
+          at: new Date(entry.improvedAt).getTime(),
+          id: "imp-" + entry.id,
+        });
+      }
+    }
+    items.sort((a, b) => b.at - a.at);
+    return items;
+  }
+
+  function unreadCount() {
+    const items = collectInboxItems();
+    const cutoff = readLastInboxRead();
+    return items.filter((it) => it.at > cutoff).length;
+  }
+
+  function paintInboxBadge() {
+    const badge = document.getElementById("inbox-badge");
+    if (!badge) return;
+    const n = unreadCount();
+    if (n > 0) {
+      badge.hidden = false;
+      badge.textContent = n > 99 ? "99+" : String(n);
+    } else {
+      badge.hidden = true;
+    }
+  }
+
+  function renderInbox() {
+    const panel = document.getElementById("panel-inbox");
+    if (!STATE.name) {
+      panel.innerHTML = `<div class="notice"><strong>Pick your name first</strong><p>Head back to the welcome screen so we know whose inbox to show.</p></div>`;
+      return;
+    }
+    if (STATE.loading) { panel.innerHTML = `<div class="loading">Loading…</div>`; return; }
+
+    const items = collectInboxItems();
+    const cutoff = readLastInboxRead();
+
+    if (items.length === 0) {
+      panel.innerHTML = `<div class="empty">
+        <div class="empty-title">Nothing in your inbox</div>
+        <p>You'll see comments, Claude's check-ins, and status changes on the entries you submitted or are assigned to.</p>
+      </div>`;
+      // Reset the read timestamp so the badge is accurate
+      saveLastInboxRead(Date.now());
+      paintInboxBadge();
+      return;
+    }
+
+    const newest = items[0].at;
+
+    const KIND_META = {
+      nudge:    { icon: "🤖", label: "Claude check-in" },
+      comment:  { icon: "💬", label: "New comment" },
+      update:   { icon: "📝", label: "Status update" },
+      improved: { icon: "✅", label: "Marked improved" },
+    };
+
+    let html = `<div class="inbox">
+      <div class="inbox-head">
+        <div>
+          <div class="inbox-title">Inbox for ${esc(STATE.name)}</div>
+          <div class="inbox-sub">Comments and updates on entries you submitted or are assigned to.</div>
+        </div>
+        <button type="button" class="link-btn" id="inbox-mark-read">Mark all read</button>
+      </div>
+      <div class="inbox-list">`;
+
+    for (const it of items) {
+      const meta = KIND_META[it.kind] || KIND_META.comment;
+      const unread = it.at > cutoff;
+      const roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
+      const headline = it.entry.headline || it.entry.problem.slice(0, 80);
+      html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}">
+        <div class="inbox-item-icon">${meta.icon}</div>
+        <div class="inbox-item-body">
+          <div class="inbox-item-row">
+            <span class="inbox-item-kind">${meta.label}</span>
+            <span class="inbox-item-when">${timeAgo(it.at)}</span>
+          </div>
+          <div class="inbox-item-text">${esc(it.who)}${it.kind === "improved" ? " marked this improved" : ": "}${it.kind === "improved" ? "" : esc(it.text)}</div>
+          <div class="inbox-item-context"><span class="inbox-item-role">${roleTag}</span> · ${esc(headline)}</div>
+        </div>
+        ${unread ? '<div class="inbox-dot" aria-label="unread"></div>' : ''}
+      </button>`;
+    }
+
+    html += `</div></div>`;
+    panel.innerHTML = html;
+
+    panel.querySelector("#inbox-mark-read")?.addEventListener("click", () => {
+      saveLastInboxRead(newest);
+      render();
+    });
+    panel.querySelectorAll("[data-inboxentry]").forEach((row) => {
+      row.addEventListener("click", () => {
+        const entryId = row.dataset.inboxentry;
+        // Mark all as read when you jump to an entry, then switch to Feed and
+        // open that entry's comments.
+        saveLastInboxRead(newest);
+        STATE.activeTab = "everyone";
+        STATE.filter = "all";
+        STATE.openCommentThread = entryId;
+        syncTabUI();
+        render();
+        requestAnimationFrame(() => {
+          const target = document.getElementById(`entry-${entryId}`);
+          if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
+        });
+      });
+    });
+  }
+
+  function timeAgo(ts) {
+    const now = Date.now();
+    const diff = Math.max(0, now - ts);
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
   function renderAssignments() {
@@ -1929,7 +2124,7 @@
       : "";
 
     return `
-      <div class="entry${isNew ? " is-new" : ""}">
+      <div class="entry${isNew ? " is-new" : ""}" id="entry-${esc(s.id)}">
         <div class="entry-head">
           ${pillHtml}
           ${kindPill}
