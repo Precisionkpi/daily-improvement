@@ -23,6 +23,10 @@
       <h2 class="welcome-prompt">Who's logging in?</h2>
       <p class="welcome-sub">Pick your name to get started.</p>
       <div class="welcome-names" id="welcome-names"></div>
+      <div class="welcome-lang">
+        <button type="button" class="welcome-lang-btn" data-lang="en" id="welcome-lang-en">English</button>
+        <button type="button" class="welcome-lang-btn" data-lang="es" id="welcome-lang-es">Español</button>
+      </div>
       <div class="welcome-footer">One improvement a day — the climb never ends.</div>
     </div>
   </div>
@@ -32,7 +36,10 @@
       <div class="brand">
         <div class="brand-mark">1</div>
         <h1>One Daily Improvement</h1>
-        <button class="notif-btn" id="notif-btn" aria-label="Toggle alerts">🔔</button>
+        <div class="brand-actions">
+          <button class="lang-btn" id="lang-btn" aria-label="Toggle language" title="English / Español">EN</button>
+          <button class="notif-btn" id="notif-btn" aria-label="Toggle alerts">🔔</button>
+        </div>
       </div>
       <p class="subtitle">Each day: one thing that made it difficult, or one move that pushes us forward.</p>
       <div class="stats" id="stats">

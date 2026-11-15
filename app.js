@@ -17,25 +17,153 @@
   }
 
   const PHOTOS_BUCKET = cfg.photosBucket || "entry-photos";
-  const HEADLINE_FN_URL = `${cfg.supabaseUrl}/functions/v1/generate-headline`;
+  const FN_BASE = `${cfg.supabaseUrl}/functions/v1`;
+  const FN = {
+    headline:  `${FN_BASE}/generate-headline`,
+    structure: `${FN_BASE}/structure-entry`,
+    translate: `${FN_BASE}/translate-entry`,
+    weekly:    `${FN_BASE}/weekly-digest`,
+    nudge:     `${FN_BASE}/stale-nudge`,
+    monthly:   `${FN_BASE}/monthly-report`,
+  };
 
-  // Fire-and-forget call to the generate-headline Edge Function.
-  // Runs in background after a submission is saved; the realtime subscription
-  // picks up the headline write from the function and re-renders.
-  function kickHeadlineGeneration(entry) {
-    if (!entry || !entry.id || !entry.problem) return;
-    const body = { submission_id: entry.id, problem: entry.problem };
-    if (entry.solution) body.solution = entry.solution;
-    if (entry.impact)   body.impact   = entry.impact;
-    fetch(HEADLINE_FN_URL, {
+  function fnCall(url, body, { background = false } = {}) {
+    const p = fetch(url, {
       method: "POST",
       headers: {
         "apikey": cfg.supabaseAnonKey,
         "Authorization": `Bearer ${cfg.supabaseAnonKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
-    }).catch((err) => { console.warn("headline gen failed", err); });
+      body: JSON.stringify(body || {}),
+    });
+    if (background) {
+      p.catch((err) => { console.warn("edge fn failed", url, err); });
+      return p;
+    }
+    return p.then(async (r) => {
+      if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+      return r.json();
+    });
+  }
+
+  // Background: Claude generates headline + category + kind + related_to on save.
+  // The realtime subscription picks up the write and re-renders.
+  function kickHeadlineGeneration(entry) {
+    if (!entry || !entry.id || !entry.problem) return;
+    const body = { submission_id: entry.id, problem: entry.problem };
+    if (entry.solution) body.solution = entry.solution;
+    if (entry.impact)   body.impact   = entry.impact;
+    fnCall(FN.headline, body, { background: true });
+  }
+
+  // Web Speech API recognition — browser-side transcription, free, no key.
+  // On stop, we send the transcript through structure-entry so Claude splits it
+  // into problem / solution / impact and fills in the form.
+  function wireVoiceButton() {
+    const btn = document.getElementById("voice-btn");
+    const status = document.getElementById("voice-status");
+    if (!btn) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      btn.disabled = true;
+      btn.title = "Voice-to-text not supported in this browser. Try Chrome or Safari.";
+      btn.classList.add("voice-btn-unavail");
+      return;
+    }
+    let recog = null, listening = false, fullTranscript = "";
+
+    function setStatus(text, cls) {
+      if (!status) return;
+      status.hidden = !text;
+      status.textContent = text || "";
+      status.className = "voice-status" + (cls ? " " + cls : "");
+    }
+
+    async function structureAndFill(transcript) {
+      setStatus("Claude is writing it up…", "working");
+      btn.disabled = true;
+      try {
+        const out = await fnCall(FN.structure, { transcript });
+        const p = document.getElementById("f-problem");
+        const s = document.getElementById("f-solution");
+        const i = document.getElementById("f-impact");
+        if (p && out.problem) p.value = out.problem;
+        if (s && out.solution) s.value = out.solution;
+        if (i && out.impact) i.value = out.impact;
+        if (out.kind && out.kind !== STATE.submitKind) {
+          STATE.submitKind = out.kind;
+          document.querySelectorAll("#submit-form .kind-opt").forEach((b) => {
+            b.setAttribute("aria-pressed", String(b.dataset.kind === STATE.submitKind));
+          });
+        }
+        setStatus("Filled in — review and tweak before submitting.", "done");
+        setTimeout(() => setStatus(""), 4000);
+      } catch (err) {
+        console.warn("structure failed", err);
+        // Fallback: drop the raw transcript into the problem field.
+        const p = document.getElementById("f-problem");
+        if (p) p.value = transcript;
+        setStatus("Couldn't auto-structure — put the raw transcript in. Edit it before submitting.", "err");
+        setTimeout(() => setStatus(""), 6000);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function start() {
+      if (listening) return;
+      fullTranscript = "";
+      try {
+        recog = new SR();
+        recog.lang = (STATE.lang === "es") ? "es-US" : "en-US";
+        recog.interimResults = true;
+        recog.continuous = true;
+      } catch (e) {
+        setStatus("Mic unavailable in this browser.", "err");
+        return;
+      }
+      recog.onresult = (e) => {
+        let finalChunk = "", interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) finalChunk += r[0].transcript;
+          else interim += r[0].transcript;
+        }
+        if (finalChunk) fullTranscript += finalChunk + " ";
+        setStatus(`Listening… "${(fullTranscript + interim).trim().slice(-120)}"`, "working");
+      };
+      recog.onerror = (e) => {
+        if (e.error === "no-speech" || e.error === "aborted") return;
+        setStatus(`Mic error: ${e.error}`, "err");
+      };
+      recog.onend = () => {
+        listening = false;
+        btn.classList.remove("is-recording");
+        btn.querySelector(".voice-label").textContent = "Speak";
+        const t = fullTranscript.trim();
+        if (t.length < 3) {
+          setStatus("Didn't catch anything — tap again and talk.", "err");
+          setTimeout(() => setStatus(""), 4000);
+          return;
+        }
+        structureAndFill(t);
+      };
+      try {
+        recog.start();
+        listening = true;
+        btn.classList.add("is-recording");
+        btn.querySelector(".voice-label").textContent = "Stop";
+        setStatus("Listening — tap Stop when you're done.", "working");
+      } catch (e) {
+        setStatus("Couldn't start mic. Check permissions.", "err");
+      }
+    }
+    function stop() {
+      if (!listening || !recog) return;
+      try { recog.stop(); } catch (_e) { /* noop */ }
+    }
+    btn.addEventListener("click", () => { listening ? stop() : start(); });
   }
 
   const NAMES = [
@@ -97,6 +225,9 @@
     bootedAt: Date.now(),
     notifEnabled: readStoredNotif(),
     scoreRange: "week",
+    lang: readStoredLang(),
+    translations: {},
+    insights: { weekly: null, monthly: null, loading: false },
   };
 
   function readStoredName() {
@@ -109,6 +240,13 @@
   function readStoredNotif() {
     try { return localStorage.getItem("don:notif") === "1"; } catch { return false; }
   }
+  function readStoredLang() {
+    try {
+      const v = localStorage.getItem("don:lang");
+      return v === "es" ? "es" : "en";
+    } catch { return "en"; }
+  }
+  function saveStoredLang(l) { try { localStorage.setItem("don:lang", l); } catch {} }
   function saveNotif(v) { try { localStorage.setItem("don:notif", v ? "1" : "0"); } catch {} }
 
   async function boot() {
@@ -122,8 +260,14 @@
     wireTabs();
     wireNotifBtn();
 
+    wireLangToggle();
     await loadAll();
     subscribeRealtime();
+    // Kick off background AI chores (no blocking).
+    setTimeout(() => {
+      fnCall(FN.nudge, {}, { background: true });
+      fnCall(FN.monthly, { month_offset: -1 }, { background: true });
+    }, 2500);
   }
 
   function renderWelcomeScreen() {
@@ -484,8 +628,14 @@
           </div>
         </div>
         <div class="field">
-          <label for="f-problem">${problemLabel}</label>
+          <div class="field-head">
+            <label for="f-problem">${problemLabel}</label>
+            <button type="button" class="voice-btn" id="voice-btn" aria-label="Speak instead of typing" title="Hold to talk, release to transcribe">
+              <span class="voice-icon">🎤</span><span class="voice-label">Speak</span>
+            </button>
+          </div>
           <span class="hint">${problemHint}</span>
+          <div class="voice-status" id="voice-status" hidden></div>
           <textarea id="f-problem" name="problem" required maxlength="800" placeholder="${esc(problemPlaceholder)}"></textarea>
           <div class="photos" id="photos-problem" data-field="problem"></div>
         </div>
@@ -497,12 +647,6 @@
           <label for="f-solution">${solutionLabel} <span class="optional">(optional)</span></label>
           <textarea id="f-solution" name="solution" maxlength="800" placeholder="${esc(solutionPlaceholder)}"></textarea>
           <div class="photos" id="photos-solution" data-field="solution"></div>
-        </div>
-        <div class="field">
-          <label>Category</label>
-          <div class="cat-chips" role="radiogroup" aria-label="Category">
-            ${CATEGORIES.map((c) => `<button type="button" class="cat-chip" data-cat="${c.code}" aria-pressed="${STATE.submitCategory === c.code}"><span class="cat-chip-emoji">${c.emoji}</span> ${esc(c.label)}</button>`).join("")}
-          </div>
         </div>
         <div class="field">
           <label>Status</label>
@@ -564,14 +708,7 @@
       });
     });
 
-    document.querySelectorAll("#submit-form .cat-chip").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        STATE.submitCategory = btn.dataset.cat;
-        document.querySelectorAll("#submit-form .cat-chip").forEach((b) => {
-          b.setAttribute("aria-pressed", String(b.dataset.cat === STATE.submitCategory));
-        });
-      });
-    });
+    wireVoiceButton();
 
     const aSel = document.getElementById("f-assign-a");
     const bSel = document.getElementById("f-assign-b");
@@ -822,6 +959,9 @@
     // Scoreboard hero — mountain climb + 14-day activity, always shown.
     body += renderScoreboard(improved);
 
+    // AI Insights — weekly digest + last month's report.
+    body += renderInsights();
+
     // Per-person workload summary — each person's open-assignment count
     if (assigned.length > 0) {
       const counts = new Map();
@@ -864,6 +1004,7 @@
     panel.innerHTML = body;
     wireEntryActions(panel);
     wireScoreboard(panel);
+    wireInsights(panel);
     panel.querySelectorAll("[data-workloadperson]").forEach((row) => {
       row.addEventListener("click", () => {
         STATE.activeTab = "everyone";
@@ -873,6 +1014,118 @@
       });
     });
     requestAnimationFrame(positionClimber);
+  }
+
+  function renderInsights() {
+    const w = STATE.insights.weekly;
+    const m = STATE.insights.monthly;
+    const loading = STATE.insights.loading;
+    let out = `<div class="insights">
+      <div class="insights-head">
+        <span class="insights-title">✨ This week at a glance</span>
+        <button type="button" class="link-btn" id="insights-refresh">${loading ? "…" : "Refresh"}</button>
+      </div>`;
+    if (!w && !loading) {
+      out += `<div class="insights-empty"><button type="button" class="btn btn-ghost" id="insights-generate">Generate weekly digest</button></div>`;
+    } else if (loading && !w) {
+      out += `<div class="insights-empty">Claude is reading this week's entries…</div>`;
+    } else if (w) {
+      out += `<div class="insights-summary">${esc(w.summary || "")}</div>`;
+      if (w.wins && w.wins.length) {
+        out += `<div class="insights-block"><div class="insights-label">Wins this week</div><ul>${w.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      }
+      if (w.open && w.open.length) {
+        out += `<div class="insights-block"><div class="insights-label">Still open — worth attention</div><ul>${w.open.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      }
+      if (w.patterns && w.patterns.length) {
+        out += `<div class="insights-block"><div class="insights-label">Patterns to watch</div><ul>${w.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      }
+    }
+    out += `</div>`;
+
+    if (m && m.exec_summary) {
+      out += `<div class="insights insights-month">
+        <div class="insights-head">
+          <span class="insights-title">📋 ${esc(m.month)} report</span>
+          <button type="button" class="link-btn" id="insights-month-refresh">Refresh</button>
+        </div>
+        <div class="insights-summary">${esc(m.exec_summary)}</div>`;
+      if (m.improvements && m.improvements.length) {
+        out += `<div class="insights-block"><div class="insights-label">Improvements shipped</div><ul>${m.improvements.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.detail)}</li>`).join("")}</ul></div>`;
+      }
+      if (m.themes && m.themes.length) {
+        out += `<div class="insights-block"><div class="insights-label">Themes</div><div class="insights-chips">${m.themes.map((t) => `<span class="insights-chip">${esc(t)}</span>`).join("")}</div></div>`;
+      }
+      out += `</div>`;
+    }
+    return out;
+  }
+
+  function wireInsights(panel) {
+    const refresh = panel.querySelector("#insights-refresh");
+    const generate = panel.querySelector("#insights-generate");
+    const monthRefresh = panel.querySelector("#insights-month-refresh");
+    const load = async (force = false) => {
+      STATE.insights.loading = true;
+      render();
+      try {
+        STATE.insights.weekly = await fnCall(FN.weekly, { force });
+      } catch (err) {
+        console.warn("weekly digest failed", err);
+      } finally {
+        STATE.insights.loading = false;
+        render();
+      }
+    };
+    const loadMonth = async () => {
+      try {
+        STATE.insights.monthly = await fnCall(FN.monthly, { month_offset: -1, force: true });
+        render();
+      } catch (err) {
+        console.warn("monthly report failed", err);
+      }
+    };
+    if (refresh) refresh.addEventListener("click", () => load(true));
+    if (generate) generate.addEventListener("click", () => load(false));
+    if (monthRefresh) monthRefresh.addEventListener("click", loadMonth);
+
+    // Lazy load the first time
+    if (!STATE.insights.weekly && !STATE.insights.loading) load(false);
+    if (!STATE.insights.monthly) {
+      fnCall(FN.monthly, { month_offset: -1 }).then((out) => {
+        STATE.insights.monthly = out;
+        render();
+      }).catch(() => { /* ignore */ });
+    }
+  }
+
+  function wireLangToggle() {
+    const btn = document.getElementById("lang-btn");
+    if (btn) {
+      btn.textContent = STATE.lang === "es" ? "ES" : "EN";
+      btn.addEventListener("click", () => {
+        STATE.lang = STATE.lang === "es" ? "en" : "es";
+        saveStoredLang(STATE.lang);
+        btn.textContent = STATE.lang === "es" ? "ES" : "EN";
+        STATE.translations = {};
+        render();
+      });
+    }
+    const wEn = document.getElementById("welcome-lang-en");
+    const wEs = document.getElementById("welcome-lang-es");
+    const paintWelcome = () => {
+      if (wEn) wEn.classList.toggle("is-active", STATE.lang === "en");
+      if (wEs) wEs.classList.toggle("is-active", STATE.lang === "es");
+    };
+    paintWelcome();
+    if (wEn) wEn.addEventListener("click", () => {
+      STATE.lang = "en"; saveStoredLang("en"); paintWelcome();
+      if (btn) btn.textContent = "EN";
+    });
+    if (wEs) wEs.addEventListener("click", () => {
+      STATE.lang = "es"; saveStoredLang("es"); paintWelcome();
+      if (btn) btn.textContent = "ES";
+    });
   }
 
   function renderScoreboard(improved) {

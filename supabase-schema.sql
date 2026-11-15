@@ -64,6 +64,22 @@ create table if not exists updates (
 create index if not exists updates_entry_id_idx on updates (entry_id);
 create index if not exists updates_created_at_idx on updates (created_at);
 
+-- Cached AI-generated summaries. key is 'week:2026-W46' or 'month:2026-11'.
+create table if not exists insights (
+  key        text primary key,
+  body       jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- Track entries that Claude has already nudged, so we don't double-nudge.
+create table if not exists nudges (
+  id         text primary key,
+  entry_id   text not null,
+  comment_id text not null,
+  created_at timestamptz default now()
+);
+create index if not exists nudges_entry_id_idx on nudges (entry_id);
+
 -- URL-as-auth: anyone with the deployed URL (and therefore the anon key)
 -- can read and write. Same effective security model as the claude.ai artifact
 -- when shared with the crew via "Can edit".
@@ -71,15 +87,21 @@ alter table submissions enable row level security;
 alter table reactions   enable row level security;
 alter table comments    enable row level security;
 alter table updates     enable row level security;
+alter table insights    enable row level security;
+alter table nudges      enable row level security;
 
 drop policy if exists anon_all on submissions;
 drop policy if exists anon_all on reactions;
 drop policy if exists anon_all on comments;
 drop policy if exists anon_all on updates;
+drop policy if exists anon_all on insights;
+drop policy if exists anon_all on nudges;
 create policy anon_all on submissions for all using (true) with check (true);
 create policy anon_all on reactions   for all using (true) with check (true);
 create policy anon_all on comments    for all using (true) with check (true);
 create policy anon_all on updates     for all using (true) with check (true);
+create policy anon_all on insights    for all using (true) with check (true);
+create policy anon_all on nudges      for all using (true) with check (true);
 
 -- Enable realtime on these tables so every open browser sees live updates.
 do $$

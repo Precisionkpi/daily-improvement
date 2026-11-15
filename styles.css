@@ -1800,3 +1800,151 @@ select {
   .tab { font-size: 0.74rem; }
   .pill { font-size: 0.58rem; padding: 2px 6px; }
 }
+
+/* ---- Voice-to-entry button ---- */
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.field-head label { margin: 0; }
+.voice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--primary-tint);
+  color: var(--primary);
+  border: 1px solid transparent;
+  border-radius: 100px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.voice-btn:hover { background: var(--primary); color: var(--primary-ink); }
+.voice-btn.is-recording {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.voice-btn-unavail { opacity: 0.45; cursor: not-allowed; }
+.voice-btn-unavail:hover { background: var(--primary-tint); color: var(--primary); }
+.voice-icon { font-size: 0.95rem; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(179, 58, 58, 0.3); }
+  50%      { box-shadow: 0 0 0 7px rgba(179, 58, 58, 0); }
+}
+.voice-status {
+  margin: 4px 0 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  border-left: 3px solid var(--border);
+}
+.voice-status.working { border-left-color: var(--progress); color: var(--progress); background: var(--progress-bg); }
+.voice-status.done    { border-left-color: var(--improved); color: var(--improved); background: var(--improved-bg); }
+.voice-status.err     { border-left-color: var(--danger); color: var(--danger); }
+
+/* ---- Language toggle ---- */
+.brand-actions { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+.lang-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  border-radius: 100px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: inherit;
+}
+.lang-btn:hover { border-color: var(--primary); color: var(--primary); }
+.welcome-lang {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.welcome-lang-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  padding: 7px 18px;
+  border-radius: 100px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.welcome-lang-btn.is-active {
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-color: var(--primary);
+}
+
+/* ---- AI Insights panel ---- */
+.insights {
+  margin: 14px 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.insights-month { background: var(--primary-tint); border-color: transparent; }
+.insights-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.insights-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--fg);
+  font-family: var(--font-display);
+}
+.insights-summary {
+  color: var(--fg);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+.insights-block { margin-top: 10px; }
+.insights-label {
+  font-size: 0.66rem;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.insights ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  color: var(--fg-muted);
+}
+.insights ul li { margin-bottom: 3px; line-height: 1.4; }
+.insights-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.insights-chip {
+  font-size: 0.74rem;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  padding: 3px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+}
+.insights-empty {
+  padding: 10px 0;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+}
