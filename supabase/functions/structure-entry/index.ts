@@ -26,10 +26,12 @@ Deno.serve(async (req) => {
 ${transcript}
 """
 
-Extract the parts into JSON. Fields:
-- "problem": the issue they ran into (what made the day harder). Clean it up grammatically but keep their voice. Required.
-- "solution": what they did about it, if they mention one. Empty string if they didn't.
-- "impact": the result or why it matters, if they mention one. Empty string if they didn't.
+Split their words into JSON fields. VERY IMPORTANT: use the speaker's EXACT wording — do not reword, paraphrase, summarize, or rewrite. Only remove filler words ("um", "uh", "like", "you know", "so"), stutters, and false starts. Keep contractions, slang, and the speaker's natural tone. If a sentence belongs across two fields (e.g. problem and solution), split it at the natural boundary; don't invent connective text. If a field isn't in the transcript, leave it empty — don't infer it.
+
+Fields:
+- "problem": the issue or thing they ran into. Required. Verbatim from the transcript (filler removed).
+- "solution": what they did about it, verbatim. Empty string if they didn't mention one.
+- "impact": the result or why it matters, verbatim. Empty string if they didn't mention one.
 - "kind": "impact" if this is a win/improvement they already made, or "difficult" if this is still a problem.
 
 Respond with ONLY a JSON object, no markdown fences, no prose.`;
