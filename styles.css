@@ -21,6 +21,7 @@ img { max-width: 100%; }
   --primary-tint: rgba(46, 93, 59, 0.12);
   --open: #A86A26;
   --open-bg: #FBEBCF;
+  --open-tint: rgba(168, 106, 38, 0.08);
   --progress: #3F6584;
   --progress-bg: #DCE6EF;
   --improved: #3E7A3E;
@@ -48,11 +49,12 @@ img { max-width: 100%; }
     --primary-ink: #0F120E;
     --primary-tint: rgba(124, 180, 136, 0.18);
     --open: #D9A063;
-    --open-bg: #3A2A19;
+    --open-bg: #241E16;
+    --open-tint: rgba(217, 160, 99, 0.10);
     --progress: #8CB3D4;
-    --progress-bg: #1D2B3A;
+    --progress-bg: #1F2731;
     --improved: #7EB07C;
-    --improved-bg: #1F2E22;
+    --improved-bg: #1E2820;
     --danger: #E47070;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
@@ -72,11 +74,12 @@ img { max-width: 100%; }
   --primary-ink: #0F120E;
   --primary-tint: rgba(124, 180, 136, 0.18);
   --open: #D9A063;
-  --open-bg: #3A2A19;
+  --open-bg: #241E16;
+  --open-tint: rgba(217, 160, 99, 0.10);
   --progress: #8CB3D4;
-  --progress-bg: #1D2B3A;
+  --progress-bg: #1F2731;
   --improved: #7EB07C;
-  --improved-bg: #1F2E22;
+  --improved-bg: #1E2820;
   --danger: #E47070;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
@@ -614,18 +617,8 @@ select {
   font-variant-numeric: tabular-nums;
 }
 .streak-badge.live {
-  background: #FFEDD0;
-  color: #A24400;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .streak-badge.live {
-    background: #3B2516;
-    color: #EBA06A;
-  }
-}
-:root[data-theme="dark"] .streak-badge.live {
-  background: #3B2516;
-  color: #EBA06A;
+  background: var(--open-bg);
+  color: var(--open);
 }
 .activity-title {
   font-size: 0.72rem;
@@ -988,7 +981,7 @@ select {
 
 /* Impact callout — between problem and solution on entry card */
 .entry-section.impact {
-  background: rgba(168, 106, 38, 0.08);
+  background: var(--open-tint);
   border-left-color: var(--open);
   color: var(--fg);
 }
