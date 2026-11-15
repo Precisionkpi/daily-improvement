@@ -29,6 +29,7 @@ create table if not exists submissions (
 );
 alter table submissions add column if not exists category   text default 'other';
 alter table submissions add column if not exists impact     text;
+alter table submissions add column if not exists headline   text;
 alter table submissions add column if not exists checklist  jsonb default '[]'::jsonb;
 alter table submissions add column if not exists related_to jsonb default '[]'::jsonb;
 create index if not exists submissions_created_at_idx on submissions (created_at desc);

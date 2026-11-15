@@ -17,6 +17,26 @@
   }
 
   const PHOTOS_BUCKET = cfg.photosBucket || "entry-photos";
+  const HEADLINE_FN_URL = `${cfg.supabaseUrl}/functions/v1/generate-headline`;
+
+  // Fire-and-forget call to the generate-headline Edge Function.
+  // Runs in background after a submission is saved; the realtime subscription
+  // picks up the headline write from the function and re-renders.
+  function kickHeadlineGeneration(entry) {
+    if (!entry || !entry.id || !entry.problem) return;
+    const body = { submission_id: entry.id, problem: entry.problem };
+    if (entry.solution) body.solution = entry.solution;
+    if (entry.impact)   body.impact   = entry.impact;
+    fetch(HEADLINE_FN_URL, {
+      method: "POST",
+      headers: {
+        "apikey": cfg.supabaseAnonKey,
+        "Authorization": `Bearer ${cfg.supabaseAnonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }).catch((err) => { console.warn("headline gen failed", err); });
+  }
 
   const NAMES = [
     "Ben Newbold",
@@ -1891,6 +1911,7 @@
       };
       const { error: insertError } = await sb.from("submissions").insert([insertRow]);
       if (insertError) throw insertError;
+      kickHeadlineGeneration({ id, problem: doc.problem, solution: doc.solution, impact: doc.impact });
       STATE.name = name;
       saveStoredName(name);
       STATE.formPhotos = { problem: [], solution: [] };
