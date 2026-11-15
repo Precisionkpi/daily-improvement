@@ -72,6 +72,7 @@
       return;
     }
     let recog = null, listening = false, fullTranscript = "";
+    let processed = false, safetyTimer = null;
 
     function setStatus(text, cls) {
       if (!status) return;
@@ -80,7 +81,23 @@
       status.className = "voice-status" + (cls ? " " + cls : "");
     }
 
+    function uiToIdle() {
+      listening = false;
+      btn.classList.remove("is-recording");
+      const label = btn.querySelector(".voice-label");
+      if (label) label.textContent = "Speak";
+      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+    }
+    function uiToRecording() {
+      listening = true;
+      btn.classList.add("is-recording");
+      const label = btn.querySelector(".voice-label");
+      if (label) label.textContent = "Stop";
+    }
+
     async function structureAndFill(transcript) {
+      if (processed) return;
+      processed = true;
       setStatus("Claude is writing it up…", "working");
       btn.disabled = true;
       try {
@@ -111,9 +128,29 @@
       }
     }
 
+    function finish(reason) {
+      // Called from click-stop, onend, or the safety timer. Idempotent.
+      if (!listening && processed) return;
+      uiToIdle();
+      const t = fullTranscript.trim();
+      if (t.length < 3) {
+        processed = true; // prevent any lingering onend from processing empty
+        setStatus(
+          reason === "timeout"
+            ? "Stopped after 60s — tap Speak again if you want another go."
+            : "Didn't catch anything — tap Speak and talk a bit louder.",
+          "err"
+        );
+        setTimeout(() => setStatus(""), 4000);
+        return;
+      }
+      structureAndFill(t);
+    }
+
     function start() {
       if (listening) return;
       fullTranscript = "";
+      processed = false;
       try {
         recog = new SR();
         recog.lang = (STATE.lang === "es") ? "es-US" : "en-US";
@@ -135,35 +172,51 @@
       };
       recog.onerror = (e) => {
         if (e.error === "no-speech" || e.error === "aborted") return;
-        setStatus(`Mic error: ${e.error}`, "err");
-      };
-      recog.onend = () => {
-        listening = false;
-        btn.classList.remove("is-recording");
-        btn.querySelector(".voice-label").textContent = "Speak";
-        const t = fullTranscript.trim();
-        if (t.length < 3) {
-          setStatus("Didn't catch anything — tap again and talk.", "err");
-          setTimeout(() => setStatus(""), 4000);
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          setStatus("Mic permission denied — tap the lock icon in your browser bar to allow.", "err");
+          uiToIdle();
           return;
         }
-        structureAndFill(t);
+        setStatus(`Mic error: ${e.error} — tap Speak to try again.`, "err");
+        uiToIdle();
+      };
+      recog.onend = () => {
+        // Browser auto-ended (e.g. silence). Process whatever we got.
+        if (processed) return;
+        finish("auto");
       };
       try {
         recog.start();
-        listening = true;
-        btn.classList.add("is-recording");
-        btn.querySelector(".voice-label").textContent = "Stop";
+        uiToRecording();
         setStatus("Listening — tap Stop when you're done.", "working");
+        // Safety: auto-stop after 60s so a forgotten tap doesn't keep the mic hot.
+        safetyTimer = setTimeout(() => {
+          try { if (recog) recog.stop(); } catch (_e) {}
+          finish("timeout");
+        }, 60000);
       } catch (e) {
-        setStatus("Couldn't start mic. Check permissions.", "err");
+        setStatus("Couldn't start mic — check permissions and try again.", "err");
+        uiToIdle();
       }
     }
+
     function stop() {
-      if (!listening || !recog) return;
-      try { recog.stop(); } catch (_e) { /* noop */ }
+      // Immediately reset the UI so the button is never visually stuck.
+      if (!listening) return;
+      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+      // Try to stop the recognizer; also abort in case stop() is slow or ignored.
+      if (recog) {
+        try { recog.stop();  } catch (_e) {}
+        try { recog.abort(); } catch (_e) {}
+      }
+      finish("user");
     }
-    btn.addEventListener("click", () => { listening ? stop() : start(); });
+
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      if (listening) stop();
+      else start();
+    });
   }
 
   const NAMES = [
