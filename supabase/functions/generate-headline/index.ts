@@ -55,9 +55,9 @@ Deno.serve(async (req) => {
     if (impact) parts.push(`Impact: ${impact}`);
     const body = parts.join("\n");
 
-    const prompt = `You help a lawn & landscape company triage their daily improvement log entries.
+    const prompt = `You help a lawn & landscape company triage their daily improvement log entries. The crew is bilingual; some dictate in English, some in Spanish.
 
-New entry:
+New entry (as submitted, in the speaker's language):
 ${body}
 
 Recent entries (for finding related ones):
@@ -65,11 +65,28 @@ ${priorLines || "(none)"}
 
 Respond with ONLY a JSON object (no markdown, no prose) with these keys:
 {
-  "headline": "4-8 word title, title case, no quotes, no period",
+  "source_lang": "en" or "es",   // language of the entry as submitted
   "category": "one of: ${CATEGORIES.join(", ")}",
   "kind": "one of: difficult (a problem/issue) or impact (a win/improvement)",
-  "related_ids": ["id1", "id2"]  // 0-3 ids from the recent entries that cover the SAME underlying issue, not just the same topic. Empty array if nothing close.
-}`;
+  "related_ids": ["id1", "id2"],  // 0-3 ids from the recent entries that cover the SAME underlying issue, not just the same topic. Empty array if nothing close.
+  "en": {
+    "headline": "4-8 word English title, Title Case, no quotes, no period",
+    "problem":  "the problem text in English",
+    "solution": "the solution text in English (empty string if none was submitted)",
+    "impact":   "the impact text in English (empty string if none was submitted)"
+  },
+  "es": {
+    "headline": "titular en español de 4-8 palabras, Mayúscula Inicial, sin comillas, sin punto final",
+    "problem":  "el problema en español",
+    "solution": "la solución en español (cadena vacía si no se envió ninguna)",
+    "impact":   "el impacto en español (cadena vacía si no se envió ninguno)"
+  }
+}
+
+Translation rules:
+- The source-language version should be the user's own wording (verbatim, only filler removed).
+- The other-language version should be a natural translation that preserves the casual crew tone — not formal, not corporate.
+- If a solution/impact wasn't submitted, use empty strings for BOTH languages.`;
 
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -80,7 +97,7 @@ Respond with ONLY a JSON object (no markdown, no prose) with these keys:
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5",
-        max_tokens: 400,
+        max_tokens: 1200,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -101,7 +118,7 @@ Respond with ONLY a JSON object (no markdown, no prose) with these keys:
       return json({ error: "parse_failed", raw }, 502);
     }
 
-    const headline = String(parsed.headline ?? "").replace(/^"|"$/g, "").replace(/\.+$/, "").trim();
+    const sourceLang = parsed.source_lang === "es" ? "es" : "en";
     const category = CATEGORIES.includes(parsed.category) ? parsed.category : "other";
     const kind = KINDS.includes(parsed.kind) ? parsed.kind : "difficult";
     const priorIds = new Set((prior ?? []).map((p) => p.id));
@@ -109,7 +126,25 @@ Respond with ONLY a JSON object (no markdown, no prose) with these keys:
       ? parsed.related_ids.filter((x: any) => typeof x === "string" && priorIds.has(x)).slice(0, 3)
       : [];
 
-    const update: Record<string, unknown> = { category, kind };
+    const cleanLang = (o: any) => ({
+      headline: String(o?.headline ?? "").replace(/^"|"$/g, "").replace(/\.+$/, "").trim(),
+      problem:  String(o?.problem  ?? "").trim(),
+      solution: String(o?.solution ?? "").trim(),
+      impact:   String(o?.impact   ?? "").trim(),
+    });
+    const translations = {
+      en: cleanLang(parsed.en),
+      es: cleanLang(parsed.es),
+    };
+    // The "canonical" headline column gets the English one — it's what shows in
+    // notifications, the fallback renderer, and is more universally searchable.
+    const headline = translations.en.headline || translations.es.headline || "";
+
+    const update: Record<string, unknown> = {
+      category, kind,
+      source_lang: sourceLang,
+      translations,
+    };
     if (headline) update.headline = headline;
     if (related.length) update.related_to = related;
 
@@ -117,7 +152,7 @@ Respond with ONLY a JSON object (no markdown, no prose) with these keys:
       .from("submissions").update(update).eq("id", submission_id);
     if (updErr) return json({ error: "db_update_failed", detail: updErr.message }, 500);
 
-    return json({ submission_id, headline, category, kind, related });
+    return json({ submission_id, headline, category, kind, related, source_lang: sourceLang, translations });
   } catch (e) {
     return json({ error: "exception", detail: String(e) }, 500);
   }

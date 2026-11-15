@@ -376,8 +376,21 @@
       improvedNote: r.improved_note,
       checklist: Array.isArray(r.checklist) ? r.checklist : [],
       relatedTo: Array.isArray(r.related_to) ? r.related_to : [],
+      sourceLang: r.source_lang || null,
+      translations: (r.translations && typeof r.translations === "object") ? r.translations : null,
       createdAt: r.created_at,
     };
+  }
+
+  // Return the entry's text in the viewer's preferred language, falling back
+  // to the stored column if we don't have a translation yet. One helper here
+  // so every render path stays in sync with the EN/ES toggle.
+  function localized(entry, field) {
+    const lang = STATE.lang || "en";
+    const t = entry?.translations?.[lang];
+    const v = t ? t[field] : null;
+    if (typeof v === "string" && v.trim()) return v;
+    return entry?.[field] ?? "";
   }
   function reactionFromDb(r) {
     return { id: r.id, entryId: r.entry_id, user: r.username, code: r.code, createdAt: r.created_at };
@@ -1130,7 +1143,7 @@
       const meta = KIND_META[it.kind] || KIND_META.comment;
       const unread = it.at > cutoff;
       const roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
-      const headline = it.entry.headline || it.entry.problem.slice(0, 80);
+      const headline = localized(it.entry, "headline") || localized(it.entry, "problem").slice(0, 80);
       html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}">
         <div class="inbox-item-icon">${meta.icon}</div>
         <div class="inbox-item-body">
@@ -2079,8 +2092,8 @@
   }
 
   function renderProblemText(s) {
-    const headline = (s.headline || "").trim();
-    const problem = (s.problem || "").trim();
+    const headline = (localized(s, "headline") || "").trim();
+    const problem = (localized(s, "problem") || "").trim();
     if (headline) {
       return `<div class="entry-problem entry-problem-headline">${esc(headline)}</div>${problem ? `<div class="entry-problem-rest">${esc(problem)}</div>` : ""}`;
     }
@@ -2119,16 +2132,19 @@
     const problemPhotos = renderPhotoGrid(s.problemPhotos);
     const solutionPhotos = renderPhotoGrid(s.solutionPhotos);
 
-    const impactSection = (s.impact && s.impact.trim())
-      ? `<div class="entry-section impact"><span class="entry-section-label">Impact</span><div class="section-body">${esc(s.impact)}</div></div>`
+    const localizedImpact = localized(s, "impact");
+    const localizedSolution = localized(s, "solution");
+
+    const impactSection = (localizedImpact && localizedImpact.trim())
+      ? `<div class="entry-section impact"><span class="entry-section-label">Impact</span><div class="section-body">${esc(localizedImpact)}</div></div>`
       : "";
 
     let solSectionLabel;
     if (isImpact) solSectionLabel = "Why it matters";
     else solSectionLabel = status === "improved" ? "Solution" : "Potential Solution";
 
-    const solSection = (s.solution && s.solution.trim()) || (s.solutionPhotos && s.solutionPhotos.length)
-      ? `<div class="entry-section potential"><span class="entry-section-label">${solSectionLabel}</span>${s.solution ? `<div class="section-body">${esc(s.solution)}</div>` : ""}${solutionPhotos}</div>`
+    const solSection = (localizedSolution && localizedSolution.trim()) || (s.solutionPhotos && s.solutionPhotos.length)
+      ? `<div class="entry-section potential"><span class="entry-section-label">${solSectionLabel}</span>${localizedSolution ? `<div class="section-body">${esc(localizedSolution)}</div>` : ""}${solutionPhotos}</div>`
       : "";
 
     const checklistBlock = renderChecklist(s);

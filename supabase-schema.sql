@@ -27,11 +27,13 @@ create table if not exists submissions (
   related_to      jsonb default '[]'::jsonb,
   created_at      timestamptz default now()
 );
-alter table submissions add column if not exists category   text default 'other';
-alter table submissions add column if not exists impact     text;
-alter table submissions add column if not exists headline   text;
-alter table submissions add column if not exists checklist  jsonb default '[]'::jsonb;
-alter table submissions add column if not exists related_to jsonb default '[]'::jsonb;
+alter table submissions add column if not exists category     text default 'other';
+alter table submissions add column if not exists impact       text;
+alter table submissions add column if not exists headline     text;
+alter table submissions add column if not exists checklist    jsonb default '[]'::jsonb;
+alter table submissions add column if not exists related_to   jsonb default '[]'::jsonb;
+alter table submissions add column if not exists source_lang  text;
+alter table submissions add column if not exists translations jsonb default '{}'::jsonb;
 create index if not exists submissions_created_at_idx on submissions (created_at desc);
 create index if not exists submissions_status_idx on submissions (status);
 
