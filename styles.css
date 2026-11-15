@@ -2078,6 +2078,15 @@ select {
   background: var(--primary);
   margin-top: 6px;
 }
+.inbox-item-digest { background: var(--primary-tint); border-color: transparent; }
+.inbox-item-digest.is-unread { background: var(--primary-tint); border-color: var(--primary); }
+.inbox-digest-bullets {
+  margin: 6px 0 2px 0;
+  padding-left: 18px;
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+}
+.inbox-digest-bullets li { margin-bottom: 2px; line-height: 1.35; }
 
 @media (max-width: 420px) {
   .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }

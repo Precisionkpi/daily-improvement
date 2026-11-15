@@ -316,10 +316,18 @@
     wireLangToggle();
     await loadAll();
     subscribeRealtime();
-    // Kick off background AI chores (no blocking).
+    // Kick off background AI chores (no blocking) + pre-fetch the digests so
+    // the inbox can show them without an extra wait when the user opens it.
     setTimeout(() => {
       fnCall(FN.nudge, {}, { background: true });
-      fnCall(FN.monthly, { month_offset: -1 }, { background: true });
+      fnCall(FN.weekly, {}).then((out) => {
+        STATE.insights.weekly = out;
+        render();
+      }).catch(() => {});
+      fnCall(FN.monthly, { month_offset: -1 }).then((out) => {
+        STATE.insights.monthly = out;
+        render();
+      }).catch(() => {});
     }, 2500);
   }
 
@@ -1076,6 +1084,39 @@
         });
       }
     }
+    // AI insights: the weekly digest and last month's report go into every
+    // crew member's inbox so nobody misses them. One item per digest; the
+    // "created" timestamp is the digest's week_start / month_start so the
+    // unread state naturally resets each new period.
+    const w = STATE.insights?.weekly;
+    if (w && (w.summary || (w.wins && w.wins.length))) {
+      items.push({
+        kind: "digest",
+        entry: null,
+        role: "all",
+        who: "Claude",
+        text: w.summary || "Weekly recap ready.",
+        at: new Date(w.week_start || Date.now()).getTime(),
+        id: "digest:week:" + (w.week_start || ""),
+        digest: w,
+        digestKind: "week",
+      });
+    }
+    const m = STATE.insights?.monthly;
+    if (m && (m.exec_summary || (m.improvements && m.improvements.length))) {
+      items.push({
+        kind: "digest",
+        entry: null,
+        role: "all",
+        who: "Claude",
+        text: m.exec_summary || `${m.month} report ready.`,
+        at: new Date(m.month_end || Date.now()).getTime(),
+        id: "digest:month:" + (m.month_start || ""),
+        digest: m,
+        digestKind: "month",
+      });
+    }
+
     items.sort((a, b) => b.at - a.at);
     return items;
   }
@@ -1127,6 +1168,7 @@
       comment:  { icon: "💬", label: "New comment" },
       update:   { icon: "📝", label: "Status update" },
       improved: { icon: "✅", label: "Marked improved" },
+      digest:   { icon: "📊", label: "Weekly digest" },
     };
 
     let html = `<div class="inbox">
@@ -1142,6 +1184,33 @@
     for (const it of items) {
       const meta = KIND_META[it.kind] || KIND_META.comment;
       const unread = it.at > cutoff;
+
+      if (it.kind === "digest") {
+        const kindLabel = it.digestKind === "month"
+          ? (it.digest?.month ? `${it.digest.month} report` : "Monthly report")
+          : "Weekly digest";
+        const bullets = it.digestKind === "month"
+          ? (it.digest?.improvements || []).slice(0, 2).map((x) => (x.title ? `${x.title}` : "")).filter(Boolean)
+          : (it.digest?.wins || []).slice(0, 2);
+        const bulletHtml = bullets.length
+          ? `<ul class="inbox-digest-bullets">${bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`
+          : "";
+        html += `<button type="button" class="inbox-item inbox-item-digest${unread ? " is-unread" : ""}" data-inboxdigest="${esc(it.digestKind)}">
+          <div class="inbox-item-icon">${meta.icon}</div>
+          <div class="inbox-item-body">
+            <div class="inbox-item-row">
+              <span class="inbox-item-kind">${esc(kindLabel)}</span>
+              <span class="inbox-item-when">${timeAgo(it.at)}</span>
+            </div>
+            <div class="inbox-item-text">${esc(it.text)}</div>
+            ${bulletHtml}
+            <div class="inbox-item-context"><span class="inbox-item-role">For the whole crew</span> · tap to open in Scoreboard</div>
+          </div>
+          ${unread ? '<div class="inbox-dot" aria-label="unread"></div>' : ''}
+        </button>`;
+        continue;
+      }
+
       const roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
       const headline = localized(it.entry, "headline") || localized(it.entry, "problem").slice(0, 80);
       html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}">
@@ -1178,6 +1247,18 @@
         render();
         requestAnimationFrame(() => {
           const target = document.getElementById(`entry-${entryId}`);
+          if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
+        });
+      });
+    });
+    panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
+      row.addEventListener("click", () => {
+        saveLastInboxRead(newest);
+        STATE.activeTab = "assignments";
+        syncTabUI();
+        render();
+        requestAnimationFrame(() => {
+          const target = document.querySelector(".insights");
           if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
         });
       });
