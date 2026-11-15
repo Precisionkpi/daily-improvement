@@ -1089,13 +1089,13 @@
     // "created" timestamp is the digest's week_start / month_start so the
     // unread state naturally resets each new period.
     const w = STATE.insights?.weekly;
-    if (w && (w.summary || (w.wins && w.wins.length))) {
+    if (w && (w.entry_count ?? 0) > 0 && w.summary) {
       items.push({
         kind: "digest",
         entry: null,
         role: "all",
         who: "Claude",
-        text: w.summary || "Weekly recap ready.",
+        text: w.summary,
         at: new Date(w.week_start || Date.now()).getTime(),
         id: "digest:week:" + (w.week_start || ""),
         digest: w,
@@ -1103,13 +1103,13 @@
       });
     }
     const m = STATE.insights?.monthly;
-    if (m && (m.exec_summary || (m.improvements && m.improvements.length))) {
+    if (m && (m.entry_count ?? 0) > 0 && m.exec_summary) {
       items.push({
         kind: "digest",
         entry: null,
         role: "all",
         who: "Claude",
-        text: m.exec_summary || `${m.month} report ready.`,
+        text: m.exec_summary,
         at: new Date(m.month_end || Date.now()).getTime(),
         id: "digest:month:" + (m.month_start || ""),
         digest: m,
