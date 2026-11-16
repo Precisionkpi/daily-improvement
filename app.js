@@ -1723,6 +1723,7 @@
       // "digest:week:..." synthetic id, so a 🔥 here shows up there too.
       const weekDigestId = `digest:week:${(w.week_start || "").slice(0, 10)}`;
       out += renderReactionRow(weekDigestId);
+      // Comments live at the bottom of the digest card below.
       if (wL.wins && wL.wins.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsWins"))}</div><ul>${wL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
@@ -1732,6 +1733,9 @@
       if (wL.patterns && wL.patterns.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsPatterns"))}</div><ul>${wL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
+      // Comment thread for the whole crew to chime in on the digest.
+      const weekDigestId = `digest:week:${(w.week_start || "").slice(0, 10)}`;
+      out += renderCommentsBlock(weekDigestId);
     }
     out += `</div>`;
 
@@ -1750,6 +1754,7 @@
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${mL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
       }
       out += renderReactionRow(monthDigestId);
+      out += renderCommentsBlock(monthDigestId);
       out += `</div>`;
     }
     return out;
