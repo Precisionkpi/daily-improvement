@@ -300,6 +300,98 @@
     } catch { return "en"; }
   }
   function saveStoredLang(l) { try { localStorage.setItem("don:lang", l); } catch {} }
+
+  // UI string dictionary. Entries themselves (problem/solution/impact/headline)
+  // translate via the submissions.translations JSONB column. This dict only
+  // covers the chrome: tabs, labels, buttons, section headers.
+  const T = {
+    en: {
+      tabSubmit: "Submit", tabMine: "Mine", tabInbox: "Inbox",
+      tabFeed: "Feed", tabScoreboard: "Scoreboard",
+      statWeek: "This week", statProgress: "In progress", statImproved: "Improved",
+      inboxUnread: "Unread", inboxAll: "All",
+      inboxMarkAllRead: "Mark all read",
+      inboxFor: "Inbox for",
+      inboxBack: "← Back to inbox",
+      inboxMoveBack: "↩ Move back to inbox",
+      inboxEmpty: "Nothing in your inbox",
+      inboxEmptyDesc: "You'll see comments, Claude's check-ins, and new entries from the crew here.",
+      inboxEmptyUnread: "You're caught up ✨",
+      inboxEmptyRead: "Nothing to show.",
+      kindClaudeCheckin: "Claude check-in", kindNewComment: "New comment",
+      kindStatusUpdate: "Status update", kindMarkedImproved: "Marked improved",
+      kindWeeklyDigest: "Weekly digest",
+      kindNewProblem: "New problem logged", kindNewImpact: "New impact logged",
+      roleYourEntry: "Your entry", roleAssigned: "Assigned to you",
+      roleFromTeam: "From the team", roleForCrew: "For the whole crew · tap to open in Scoreboard",
+      markedImprovedBy: "marked this improved",
+      posted: "posted",
+      entryLabelProblem: "The problem", entryLabelMove: "The move",
+      entryLabelImpact: "IMPACT", entryLabelSolution: "SOLUTION",
+      entryLabelPotential: "POTENTIAL SOLUTION", entryLabelWhyMatters: "WHY IT MATTERS",
+      entryLabelSubmittedBy: "Submitted By:", entryLabelAssignedTo: "Assigned To",
+      insightsWeek: "✨ This week at a glance",
+      insightsMonth: "📋",
+      insightsRefresh: "Refresh",
+      insightsWins: "Wins this week", insightsOpen: "Still open — worth attention",
+      insightsPatterns: "Patterns to watch",
+      insightsImprovements: "Improvements shipped", insightsThemes: "Themes",
+      insightsGenerate: "Generate weekly digest",
+      insightsLoading: "Claude is reading this week's entries…",
+      welcomePrompt: "Who's logging in?",
+      welcomeSub: "Pick your name to get started.",
+      welcomeFooter: "One improvement a day — the climb never ends.",
+      workload: "Workload", workloadSub: "right now · tap to filter",
+      workloadOpen: "open",
+      sectionInProgress: "In progress",
+      noInstructions: "No instructions yet.",
+    },
+    es: {
+      tabSubmit: "Enviar", tabMine: "Míos", tabInbox: "Buzón",
+      tabFeed: "Actividad", tabScoreboard: "Marcador",
+      statWeek: "Esta semana", statProgress: "En progreso", statImproved: "Mejorado",
+      inboxUnread: "Sin leer", inboxAll: "Todos",
+      inboxMarkAllRead: "Marcar todo leído",
+      inboxFor: "Buzón de",
+      inboxBack: "← Volver al buzón",
+      inboxMoveBack: "↩ Volver al buzón",
+      inboxEmpty: "Nada en tu buzón",
+      inboxEmptyDesc: "Aquí verás comentarios, mensajes de Claude y entradas nuevas del equipo.",
+      inboxEmptyUnread: "Estás al día ✨",
+      inboxEmptyRead: "Nada que mostrar.",
+      kindClaudeCheckin: "Mensaje de Claude", kindNewComment: "Comentario nuevo",
+      kindStatusUpdate: "Cambio de estado", kindMarkedImproved: "Marcado mejorado",
+      kindWeeklyDigest: "Resumen semanal",
+      kindNewProblem: "Nuevo problema", kindNewImpact: "Nueva mejora",
+      roleYourEntry: "Tu entrada", roleAssigned: "Asignado a ti",
+      roleFromTeam: "Del equipo", roleForCrew: "Para todo el equipo · toca para ver en Marcador",
+      markedImprovedBy: "marcó esto como mejorado",
+      posted: "publicó",
+      entryLabelProblem: "El problema", entryLabelMove: "La mejora",
+      entryLabelImpact: "IMPACTO", entryLabelSolution: "SOLUCIÓN",
+      entryLabelPotential: "POSIBLE SOLUCIÓN", entryLabelWhyMatters: "POR QUÉ IMPORTA",
+      entryLabelSubmittedBy: "Enviado por:", entryLabelAssignedTo: "Asignado a",
+      insightsWeek: "✨ Esta semana de un vistazo",
+      insightsMonth: "📋",
+      insightsRefresh: "Actualizar",
+      insightsWins: "Logros de la semana", insightsOpen: "Pendientes — vale la pena atender",
+      insightsPatterns: "Patrones a vigilar",
+      insightsImprovements: "Mejoras logradas", insightsThemes: "Temas",
+      insightsGenerate: "Generar resumen semanal",
+      insightsLoading: "Claude está leyendo las entradas de esta semana…",
+      welcomePrompt: "¿Quién está iniciando sesión?",
+      welcomeSub: "Elige tu nombre para empezar.",
+      welcomeFooter: "Una mejora al día — el ascenso no termina.",
+      workload: "Carga", workloadSub: "ahora mismo · toca para filtrar",
+      workloadOpen: "abiertos",
+      sectionInProgress: "En progreso",
+      noInstructions: "Sin instrucciones todavía.",
+    },
+  };
+  function t(key) {
+    const lang = STATE.lang || "en";
+    return (T[lang] && T[lang][key]) || T.en[key] || key;
+  }
   function saveNotif(v) { try { localStorage.setItem("don:notif", v ? "1" : "0"); } catch {} }
 
   async function boot() {
@@ -1289,34 +1381,34 @@
     const newest = items[0].at;
 
     const KIND_META = {
-      nudge:       { icon: "🤖", label: "Claude check-in" },
-      comment:     { icon: "💬", label: "New comment" },
-      update:      { icon: "📝", label: "Status update" },
-      improved:    { icon: "✅", label: "Marked improved" },
-      digest:      { icon: "📊", label: "Weekly digest" },
-      "new-problem": { icon: "🪓", label: "New problem logged" },
-      "new-impact":  { icon: "💡", label: "New impact logged" },
+      nudge:       { icon: "🤖", label: t("kindClaudeCheckin") },
+      comment:     { icon: "💬", label: t("kindNewComment") },
+      update:      { icon: "📝", label: t("kindStatusUpdate") },
+      improved:    { icon: "✅", label: t("kindMarkedImproved") },
+      digest:      { icon: "📊", label: t("kindWeeklyDigest") },
+      "new-problem": { icon: "🪓", label: t("kindNewProblem") },
+      "new-impact":  { icon: "💡", label: t("kindNewImpact") },
     };
 
     let html = `<div class="inbox">
       <div class="inbox-head">
         <div>
-          <div class="inbox-title">Inbox for ${esc(STATE.name)}</div>
+          <div class="inbox-title">${esc(t("inboxFor"))} ${esc(STATE.name)}</div>
         </div>
-        <button type="button" class="link-btn" id="inbox-mark-read">Mark all read</button>
+        <button type="button" class="link-btn" id="inbox-mark-read">${esc(t("inboxMarkAllRead"))}</button>
       </div>
       <div class="inbox-subtabs" role="tablist">
         <button type="button" class="inbox-subtab${!showingRead ? " is-active" : ""}" data-subtab="unread" role="tab" aria-selected="${!showingRead}">
-          Unread <span class="inbox-subtab-count">${unreadItems.length}</span>
+          ${esc(t("inboxUnread"))} <span class="inbox-subtab-count">${unreadItems.length}</span>
         </button>
         <button type="button" class="inbox-subtab${showingRead ? " is-active" : ""}" data-subtab="all" role="tab" aria-selected="${showingRead}">
-          All <span class="inbox-subtab-count">${items.length}</span>
+          ${esc(t("inboxAll"))} <span class="inbox-subtab-count">${items.length}</span>
         </button>
       </div>
       <div class="inbox-list">`;
 
     if (toRender.length === 0) {
-      html += `<div class="inbox-empty-section">${showingRead ? "Nothing to show." : "You're caught up ✨"}</div>`;
+      html += `<div class="inbox-empty-section">${esc(showingRead ? t("inboxEmptyRead") : t("inboxEmptyUnread"))}</div>`;
     }
 
     for (const it of toRender) {
@@ -1324,12 +1416,18 @@
       const unread = isInboxItemUnread(it, cutoff, readIds, forcedIds);
 
       if (it.kind === "digest") {
+        const langKey = STATE.lang || "en";
+        // Pull language-specific sections from the digest body when available.
+        const digestLang = it.digest?.[langKey] || it.digest;
         const kindLabel = it.digestKind === "month"
-          ? (it.digest?.month ? `${it.digest.month} report` : "Monthly report")
-          : "Weekly digest";
+          ? (it.digest?.month ? `${it.digest.month}` : t("insightsMonth"))
+          : t("kindWeeklyDigest");
+        const displayText = it.digestKind === "month"
+          ? (digestLang?.exec_summary || it.text)
+          : (digestLang?.summary || it.text);
         const bullets = it.digestKind === "month"
-          ? (it.digest?.improvements || []).slice(0, 2).map((x) => (x.title ? `${x.title}` : "")).filter(Boolean)
-          : (it.digest?.wins || []).slice(0, 2);
+          ? (digestLang?.improvements || []).slice(0, 2).map((x) => (x && x.title ? x.title : "")).filter(Boolean)
+          : (digestLang?.wins || []).slice(0, 2);
         const bulletHtml = bullets.length
           ? `<ul class="inbox-digest-bullets">${bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`
           : "";
@@ -1340,9 +1438,9 @@
               <span class="inbox-item-kind">${esc(kindLabel)}</span>
               <span class="inbox-item-when">${timeAgo(it.at)}</span>
             </div>
-            <div class="inbox-item-text">${esc(it.text)}</div>
+            <div class="inbox-item-text">${esc(displayText)}</div>
             ${bulletHtml}
-            <div class="inbox-item-context"><span class="inbox-item-role">For the whole crew</span> · tap to open in Scoreboard</div>
+            <div class="inbox-item-context">${esc(t("roleForCrew"))}</div>
           </div>
           ${unread ? '<div class="inbox-dot" aria-label="unread"></div>' : ''}
         </button>`;
@@ -1353,21 +1451,21 @@
       const headline = localized(it.entry, "headline") || localized(it.entry, "problem").slice(0, 80);
 
       if (it.kind === "new-problem" || it.kind === "new-impact") {
-        roleTag = "From the team";
-        bodyText = `${esc(it.who)} posted: ${esc(it.text)}`;
+        roleTag = t("roleFromTeam");
+        bodyText = `${esc(it.who)} ${esc(t("posted"))}: ${esc(it.text)}`;
         contextText = "";
       } else if (it.kind === "improved") {
-        roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
-        bodyText = `${esc(it.who)} marked this improved`;
+        roleTag = it.role === "submitter" ? t("roleYourEntry") : t("roleAssigned");
+        bodyText = `${esc(it.who)} ${esc(t("markedImprovedBy"))}`;
         contextText = esc(headline);
       } else {
-        roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
+        roleTag = it.role === "submitter" ? t("roleYourEntry") : t("roleAssigned");
         bodyText = `${esc(it.who)}: ${esc(it.text)}`;
         contextText = esc(headline);
       }
 
       const backLink = !unread
-        ? `<span class="inbox-moveback" data-moveback="${esc(it.id)}" role="button" tabindex="0" title="Move back to inbox">↩ Move back to inbox</span>`
+        ? `<span class="inbox-moveback" data-moveback="${esc(it.id)}" role="button" tabindex="0" title="${esc(t("inboxMoveBack"))}">${esc(t("inboxMoveBack"))}</span>`
         : "";
       html += `<div class="inbox-item-wrap">
         <button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}" data-inboxitemid="${esc(it.id)}">
@@ -1412,10 +1510,13 @@
       row.addEventListener("click", () => {
         const entryId = row.dataset.inboxentry;
         const itemId = row.dataset.inboxitemid;
+        const wasAlreadyRead = !row.classList.contains("is-unread");
         // Mark ONLY this specific item as read.
         markInboxItemRead(itemId);
         paintInboxBadge();
-        openEntryDetail(entryId, itemId);
+        // Only show "Move back to inbox" when the item was already read
+        // (tapped from the All tab) — on first read it's unnecessary noise.
+        openEntryDetail(entryId, wasAlreadyRead ? itemId : null);
       });
     });
     panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
@@ -1527,44 +1628,52 @@
   }
 
   function renderInsights() {
+    const lang = STATE.lang || "en";
     const w = STATE.insights.weekly;
     const m = STATE.insights.monthly;
     const loading = STATE.insights.loading;
+
+    // Pull language-specific sections from the body, falling back to the
+    // top-level (English) fields for older cached digests that didn't have
+    // the per-language split.
+    const wL = w ? (w[lang] || w) : null;
+    const mL = m ? (m[lang] || m) : null;
+
     let out = `<div class="insights">
       <div class="insights-head">
-        <span class="insights-title">✨ This week at a glance</span>
-        <button type="button" class="link-btn" id="insights-refresh">${loading ? "…" : "Refresh"}</button>
+        <span class="insights-title">${esc(t("insightsWeek"))}</span>
+        <button type="button" class="link-btn" id="insights-refresh">${loading ? "…" : esc(t("insightsRefresh"))}</button>
       </div>`;
     if (!w && !loading) {
-      out += `<div class="insights-empty"><button type="button" class="btn btn-ghost" id="insights-generate">Generate weekly digest</button></div>`;
+      out += `<div class="insights-empty"><button type="button" class="btn btn-ghost" id="insights-generate">${esc(t("insightsGenerate"))}</button></div>`;
     } else if (loading && !w) {
-      out += `<div class="insights-empty">Claude is reading this week's entries…</div>`;
-    } else if (w) {
-      out += `<div class="insights-summary">${esc(w.summary || "")}</div>`;
-      if (w.wins && w.wins.length) {
-        out += `<div class="insights-block"><div class="insights-label">Wins this week</div><ul>${w.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      out += `<div class="insights-empty">${esc(t("insightsLoading"))}</div>`;
+    } else if (wL) {
+      out += `<div class="insights-summary">${esc(wL.summary || "")}</div>`;
+      if (wL.wins && wL.wins.length) {
+        out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsWins"))}</div><ul>${wL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
-      if (w.open && w.open.length) {
-        out += `<div class="insights-block"><div class="insights-label">Still open — worth attention</div><ul>${w.open.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      if (wL.open && wL.open.length) {
+        out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsOpen"))}</div><ul>${wL.open.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
-      if (w.patterns && w.patterns.length) {
-        out += `<div class="insights-block"><div class="insights-label">Patterns to watch</div><ul>${w.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      if (wL.patterns && wL.patterns.length) {
+        out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsPatterns"))}</div><ul>${wL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
     }
     out += `</div>`;
 
-    if (m && m.exec_summary) {
+    if (m && mL && mL.exec_summary) {
       out += `<div class="insights insights-month">
         <div class="insights-head">
-          <span class="insights-title">📋 ${esc(m.month)} report</span>
-          <button type="button" class="link-btn" id="insights-month-refresh">Refresh</button>
+          <span class="insights-title">${esc(t("insightsMonth"))} ${esc(m.month)}</span>
+          <button type="button" class="link-btn" id="insights-month-refresh">${esc(t("insightsRefresh"))}</button>
         </div>
-        <div class="insights-summary">${esc(m.exec_summary)}</div>`;
-      if (m.improvements && m.improvements.length) {
-        out += `<div class="insights-block"><div class="insights-label">Improvements shipped</div><ul>${m.improvements.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.detail)}</li>`).join("")}</ul></div>`;
+        <div class="insights-summary">${esc(mL.exec_summary)}</div>`;
+      if (mL.improvements && mL.improvements.length) {
+        out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsImprovements"))}</div><ul>${mL.improvements.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.detail)}</li>`).join("")}</ul></div>`;
       }
-      if (m.themes && m.themes.length) {
-        out += `<div class="insights-block"><div class="insights-label">Themes</div><div class="insights-chips">${m.themes.map((t) => `<span class="insights-chip">${esc(t)}</span>`).join("")}</div></div>`;
+      if (mL.themes && mL.themes.length) {
+        out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${mL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
       }
       out += `</div>`;
     }
@@ -1639,14 +1748,50 @@
       saveStoredLang(lang);
       STATE.translations = {};
       paintAll();
+      paintStaticLabels();
       render();
     };
 
     paintAll();
+    paintStaticLabels();
     if (hEn) hEn.addEventListener("click", () => setLang("en"));
     if (hEs) hEs.addEventListener("click", () => setLang("es"));
     if (wEn) wEn.addEventListener("click", () => setLang("en"));
     if (wEs) wEs.addEventListener("click", () => setLang("es"));
+  }
+
+  // Repaint the pieces of the static HTML shell (tabs, welcome screen,
+  // stat labels) in the current language. Called on boot and on toggle.
+  function paintStaticLabels() {
+    const set = (selector, text) => {
+      const el = document.querySelector(selector);
+      if (el) el.textContent = text;
+    };
+    // Tab labels — preserve the badge <span> inside the Inbox tab.
+    const tabs = {
+      "#tab-submit": t("tabSubmit"),
+      "#tab-mine": t("tabMine"),
+      "#tab-everyone": t("tabFeed"),
+      "#tab-assignments": t("tabScoreboard"),
+    };
+    for (const [sel, text] of Object.entries(tabs)) {
+      const el = document.querySelector(sel);
+      if (el) el.firstChild && el.firstChild.nodeType === 3
+        ? (el.firstChild.nodeValue = text)
+        : (el.textContent = text);
+    }
+    const inbox = document.getElementById("tab-inbox");
+    if (inbox) {
+      const badge = inbox.querySelector(".tab-badge");
+      inbox.firstChild.nodeValue = t("tabInbox");
+      if (badge && !inbox.contains(badge)) inbox.appendChild(badge);
+    }
+    set("#stat-week + .stat-label, [data-statfilter=\"week\"] .stat-label", t("statWeek"));
+    set("[data-statfilter=\"progress\"] .stat-label", t("statProgress"));
+    set("[data-statfilter=\"improved\"] .stat-label", t("statImproved"));
+    set(".welcome-prompt", t("welcomePrompt"));
+    set(".welcome-sub", t("welcomeSub"));
+    set(".welcome-footer", t("welcomeFooter"));
   }
 
   function renderScoreboard(improved) {
@@ -2386,7 +2531,7 @@
 
     const assigneesForHead = getAssignees(s);
     const assigneeChip = effectiveStatus === "assigned" && assigneesForHead.length > 0
-      ? `<span class="entry-assignee-chip">Assigned To 👉 ${esc(formatAssignees(assigneesForHead))}</span>`
+      ? `<span class="entry-assignee-chip">${esc(t("entryLabelAssignedTo"))} 👉 ${esc(formatAssignees(assigneesForHead))}</span>`
       : "";
 
     const problemPhotos = renderPhotoGrid(s.problemPhotos);
@@ -2396,12 +2541,12 @@
     const localizedSolution = localized(s, "solution");
 
     const impactSection = (localizedImpact && localizedImpact.trim())
-      ? `<div class="entry-section impact"><span class="entry-section-label">Impact</span><div class="section-body">${esc(localizedImpact)}</div></div>`
+      ? `<div class="entry-section impact"><span class="entry-section-label">${esc(t("entryLabelImpact"))}</span><div class="section-body">${esc(localizedImpact)}</div></div>`
       : "";
 
     let solSectionLabel;
-    if (isImpact) solSectionLabel = "Why it matters";
-    else solSectionLabel = status === "improved" ? "Solution" : "Potential Solution";
+    if (isImpact) solSectionLabel = t("entryLabelWhyMatters");
+    else solSectionLabel = status === "improved" ? t("entryLabelSolution") : t("entryLabelPotential");
 
     const solSection = (localizedSolution && localizedSolution.trim()) || (s.solutionPhotos && s.solutionPhotos.length)
       ? `<div class="entry-section potential"><span class="entry-section-label">${solSectionLabel}</span>${localizedSolution ? `<div class="section-body">${esc(localizedSolution)}</div>` : ""}${solutionPhotos}</div>`
@@ -2458,12 +2603,12 @@
           ${pillHtml}
           ${kindPill}
           ${catPill}
-          <span class="entry-name"><span class="entry-name-label">Submitted By:</span> ${esc(s.name || "—")}</span>
+          <span class="entry-name"><span class="entry-name-label">${esc(t("entryLabelSubmittedBy"))}</span> ${esc(s.name || "—")}</span>
           <span class="entry-date">${esc(date)}</span>
           ${assigneeChip}
         </div>
         <div class="entry-problem-box ${isImpact ? "is-impact" : ""}">
-          <span class="entry-problem-label">${isImpact ? "The move" : "The problem"}</span>
+          <span class="entry-problem-label">${esc(isImpact ? t("entryLabelMove") : t("entryLabelProblem"))}</span>
           ${renderProblemText(s)}
         </div>
         ${problemPhotos}
@@ -3004,7 +3149,7 @@
     STATE.openCommentThread = entryId;
 
     const keepBtn = fromInboxItemId
-      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="Push this back to the inbox as unread">↩ Move back to inbox</button>`
+      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="${esc(t("inboxMoveBack"))}">${esc(t("inboxMoveBack"))}</button>`
       : "";
 
     const el = document.createElement("div");
@@ -3012,7 +3157,7 @@
     el.innerHTML = `
       <div class="modal entry-detail-modal" role="dialog" aria-modal="true" aria-label="Entry">
         <div class="entry-detail-head">
-          <button type="button" class="entry-detail-close" aria-label="Back to inbox">← Back to inbox</button>
+          <button type="button" class="entry-detail-close" aria-label="${esc(t("inboxBack"))}">${esc(t("inboxBack"))}</button>
           ${keepBtn}
         </div>
         <div class="entry-detail-body">${renderEntry(entry)}</div>

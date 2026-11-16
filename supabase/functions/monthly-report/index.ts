@@ -73,17 +73,22 @@ Month: ${monthLabel}
 Entries (${list.length}):
 ${JSON.stringify(list, null, 2)}
 
-Respond with ONLY JSON, no markdown:
+Respond with ONLY JSON, no markdown, with BOTH English and Spanish versions of each text section. Don't translate names of people, places, or equipment brands. Spanish should use natural Latin American crew tone, not formal.
+
 {
-  "exec_summary": "3-5 sentence paragraph recapping the month's operational improvements and their business impact.",
-  "improvements": [
-    {"title": "short name", "detail": "1-2 sentence description of what was fixed and the benefit"}
-  ],  // up to 6 strongest
-  "open_initiatives": [
-    {"title": "...", "detail": "..."}
-  ],  // up to 4 things still in motion
-  "themes": ["recurring area of focus 1", "..."],  // 2-4
-  "by_category": {"equipment": N, "scheduling": N, ...}  // count per category present
+  "by_category": {"equipment": N, "scheduling": N, ...},  // count per category present
+  "en": {
+    "exec_summary": "3-5 sentence paragraph recapping the month's improvements and business impact.",
+    "improvements": [ {"title": "short name", "detail": "1-2 sentence description"} ],  // up to 6
+    "open_initiatives": [ {"title": "...", "detail": "..."} ],  // up to 4
+    "themes": ["recurring area of focus 1", "..."]  // 2-4
+  },
+  "es": {
+    "exec_summary": "párrafo de 3-5 oraciones en español casual.",
+    "improvements": [ {"title": "...", "detail": "..."} ],
+    "open_initiatives": [ {"title": "...", "detail": "..."} ],
+    "themes": ["..."]
+  }
 }`;
 
     const ar = await fetch("https://api.anthropic.com/v1/messages", {
@@ -95,7 +100,7 @@ Respond with ONLY JSON, no markdown:
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5",
-        max_tokens: 2500,
+        max_tokens: 4500,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -115,12 +120,18 @@ Respond with ONLY JSON, no markdown:
       return json({ error: "parse_failed", raw }, 502);
     }
 
+    const cleanLang = (o: any) => ({
+      exec_summary:     String(o?.exec_summary ?? ""),
+      improvements:     Array.isArray(o?.improvements)     ? o.improvements.slice(0, 8)     : [],
+      open_initiatives: Array.isArray(o?.open_initiatives) ? o.open_initiatives.slice(0, 6) : [],
+      themes:           Array.isArray(o?.themes)           ? o.themes.slice(0, 5)           : [],
+    });
+    const en = cleanLang(parsed.en ?? parsed);
+    const es = cleanLang(parsed.es);
     const out = {
       month: monthLabel,
-      exec_summary: String(parsed.exec_summary ?? ""),
-      improvements: Array.isArray(parsed.improvements) ? parsed.improvements.slice(0, 8) : [],
-      open_initiatives: Array.isArray(parsed.open_initiatives) ? parsed.open_initiatives.slice(0, 6) : [],
-      themes: Array.isArray(parsed.themes) ? parsed.themes.slice(0, 5) : [],
+      ...en,
+      en, es,
       by_category: typeof parsed.by_category === "object" && parsed.by_category ? parsed.by_category : {},
       entry_count: list.length,
       month_start: monthStart.toISOString(),

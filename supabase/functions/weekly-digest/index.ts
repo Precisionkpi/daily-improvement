@@ -71,13 +71,23 @@ Deno.serve(async (req) => {
 Entries (chronological):
 ${JSON.stringify(list, null, 2)}
 
-Respond with ONLY JSON, no markdown, matching:
+Respond with ONLY JSON, no markdown, with BOTH English and Spanish versions of each section. Everything stays the same except the language — don't translate names of people, places, or equipment brands. Spanish should use natural, casual crew tone (Latin American Spanish).
+
 {
-  "summary": "2-3 sentence plain-English recap for a Monday huddle. Direct, concrete, not corporate.",
-  "wins": ["short bullet of a completed improvement", "..."],  // up to 4
-  "open": ["short bullet of a still-open issue worth attention", "..."],  // up to 4
-  "patterns": ["a pattern worth watching across entries (e.g. 'parking came up 3 times')", "..."],  // up to 3; empty if none
-  "active_people": ["Name — N entries", "..."]  // top 3 by entry count
+  "en": {
+    "summary": "2-3 sentence plain-English recap for a Monday huddle. Direct, concrete, not corporate.",
+    "wins": ["short bullet of a completed improvement", "..."],  // up to 4
+    "open": ["short bullet of a still-open issue worth attention", "..."],  // up to 4
+    "patterns": ["a pattern worth watching across entries", "..."],  // up to 3
+    "active_people": ["Name — N entries", "..."]  // top 3 by entry count
+  },
+  "es": {
+    "summary": "resumen de 2-3 oraciones en español casual.",
+    "wins": ["..."],
+    "open": ["..."],
+    "patterns": ["..."],
+    "active_people": ["Nombre — N entradas", "..."]
+  }
 }`;
 
     const ar = await fetch("https://api.anthropic.com/v1/messages", {
@@ -89,7 +99,7 @@ Respond with ONLY JSON, no markdown, matching:
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5",
-        max_tokens: 1200,
+        max_tokens: 2400,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -109,12 +119,19 @@ Respond with ONLY JSON, no markdown, matching:
       return json({ error: "parse_failed", raw }, 502);
     }
 
+    const cleanLang = (o: any) => ({
+      summary:       String(o?.summary ?? ""),
+      wins:          Array.isArray(o?.wins)          ? o.wins.slice(0, 6)          : [],
+      open:          Array.isArray(o?.open)          ? o.open.slice(0, 6)          : [],
+      patterns:      Array.isArray(o?.patterns)      ? o.patterns.slice(0, 4)      : [],
+      active_people: Array.isArray(o?.active_people) ? o.active_people.slice(0, 5) : [],
+    });
+    const en = cleanLang(parsed.en ?? parsed);  // fall back to flat shape if Claude forgot to nest
+    const es = cleanLang(parsed.es);
     const out = {
-      summary: String(parsed.summary ?? ""),
-      wins: Array.isArray(parsed.wins) ? parsed.wins.slice(0, 6) : [],
-      open: Array.isArray(parsed.open) ? parsed.open.slice(0, 6) : [],
-      patterns: Array.isArray(parsed.patterns) ? parsed.patterns.slice(0, 4) : [],
-      active_people: Array.isArray(parsed.active_people) ? parsed.active_people.slice(0, 5) : [],
+      // Default surface = English, with per-language sections
+      ...en,
+      en, es,
       week_start: weekStart.toISOString(),
       week_end: weekEnd.toISOString(),
       entry_count: list.length,
