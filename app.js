@@ -3240,13 +3240,18 @@
   }
 
   // Open the weekly or monthly digest in a modal — same shell as entry
-  // detail, but renders the digest body (summary + bullets + impact card)
-  // instead of a submission.
+  // detail. The digest's "synthetic entry id" is the period key, which lets
+  // us reuse the existing comments + reactions tables and renderers so the
+  // crew can discuss the digest just like they do an entry.
   function openDigestDetail(kind, fromInboxItemId, useMoveBackLabel) {
     const digest = kind === "month" ? STATE.insights.monthly : STATE.insights.weekly;
     if (!digest) return;
     const lang = STATE.lang || "en";
     const dL = digest[lang] || digest;
+
+    const digestId = kind === "month"
+      ? `digest:month:${(digest.month_start || "").slice(0, 7)}`
+      : `digest:week:${(digest.week_start || "").slice(0, 10)}`;
 
     const keepLabel = useMoveBackLabel ? t("inboxMoveBack") : t("inboxKeep");
     const keepBtn = fromInboxItemId
@@ -3289,6 +3294,12 @@
         body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${dL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
       }
     }
+
+    // React + comment on the digest itself. Force the comments open.
+    const prevThread = STATE.openCommentThread;
+    STATE.openCommentThread = digestId;
+    body += renderReactionRow(digestId);
+    body += renderCommentsBlock(digestId);
     body += `</div>`;
 
     const el = document.createElement("div");
@@ -3304,6 +3315,8 @@
     document.body.appendChild(el);
 
     const close = () => {
+      STATE.openCommentThread = prevThread;
+      STATE._detailModalRerender = null;
       el.remove();
       document.removeEventListener("keydown", onKey);
       render();
@@ -3320,6 +3333,41 @@
         close();
       });
     }
+
+    // Wire reactions + comment composer so the digest is interactive.
+    const modalBody = el.querySelector(".entry-detail-body");
+    wireEntryActions(modalBody);
+
+    // Keep the modal fresh when realtime pushes a new comment / reaction.
+    STATE._detailModalRerender = () => {
+      // Re-render by delegating back to this same function; the outer modal
+      // is still open, so just swap the body content.
+      let fresh = `<div class="digest-detail">`;
+      fresh += `<h2 class="digest-detail-title">${esc(title)}</h2>`;
+      if (summary) fresh += `<div class="digest-detail-summary">${esc(summary)}</div>`;
+      if (kind !== "month") {
+        const hours = Number(digest?.impact_hours_estimate || 0);
+        if (hours > 0) {
+          const basis = digest?.impact_basis ? `<div class="impact-basis"><span class="impact-basis-label">${esc(t("impactBasisLabel"))}:</span> ${esc(digest.impact_basis)}</div>` : "";
+          fresh += `<div class="impact-card">
+            <div class="impact-head">${esc(t("impactTitle"))}</div>
+            <div class="impact-num">${hours}<span class="impact-unit">${esc(t("impactHours"))}</span></div>
+            ${basis}
+          </div>`;
+        }
+        if (dL.wins && dL.wins.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsWins"))}</div><ul>${dL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+        if (dL.open && dL.open.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsOpen"))}</div><ul>${dL.open.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+        if (dL.patterns && dL.patterns.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsPatterns"))}</div><ul>${dL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      } else {
+        if (dL.improvements && dL.improvements.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsImprovements"))}</div><ul>${dL.improvements.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.detail)}</li>`).join("")}</ul></div>`;
+        if (dL.themes && dL.themes.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${dL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
+      }
+      fresh += renderReactionRow(digestId);
+      fresh += renderCommentsBlock(digestId);
+      fresh += `</div>`;
+      modalBody.innerHTML = fresh;
+      wireEntryActions(modalBody);
+    };
   }
 
   function openLightbox(src) {
