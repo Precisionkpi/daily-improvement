@@ -2095,41 +2095,66 @@ select {
 }
 
 /* ---- Entry detail modal (opened from Inbox) ---- */
-.entry-detail-backdrop { align-items: flex-start; padding-top: 0; }
-@media (min-width: 480px) { .entry-detail-backdrop { align-items: flex-start; padding-top: 24px; } }
+/* On mobile the modal is full-bleed: no backdrop padding, modal fills the
+   viewport respecting only the OS safe-area insets. On wider screens we
+   center a bounded card instead. */
+.entry-detail-backdrop {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+}
 .entry-detail-modal {
-  max-width: 640px;
-  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-width: none;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   animation: slideUp 0.22s ease-out;
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .entry-detail-backdrop {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .entry-detail-modal {
+    max-width: 680px;
+    width: 100%;
+    height: auto;
+    max-height: calc(100dvh - 48px);
+    border-radius: var(--radius);
+  }
 }
 .entry-detail-head {
   padding: 10px 14px;
   padding-top: calc(10px + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid var(--border);
   background: var(--surface);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  border-radius: var(--radius) var(--radius) 0 0;
+  flex-shrink: 0;
 }
 .entry-detail-close {
   background: transparent;
   border: 0;
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--primary);
   cursor: pointer;
-  padding: 6px 4px;
+  padding: 8px 4px;
+  min-height: 44px;
 }
 .entry-detail-close:hover { color: var(--primary-hover); }
 .entry-detail-body {
   padding: 14px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   flex: 1;
+  min-height: 0;
 }
 .entry-detail-body .entry {
   box-shadow: none;
