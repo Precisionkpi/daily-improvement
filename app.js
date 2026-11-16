@@ -1066,6 +1066,33 @@
   function saveLastInboxRead(ts) {
     try { localStorage.setItem("don:inboxRead:" + STATE.name, String(ts)); } catch {}
   }
+  // Per-item read set — the mark-all-read timestamp still covers the bulk
+  // case, but individual taps add just that one id so other unread items
+  // stay unread until the user actually looks at them.
+  function readInboxReadIds() {
+    try {
+      const v = localStorage.getItem("don:inboxReadIds:" + STATE.name);
+      if (!v) return new Set();
+      return new Set(JSON.parse(v));
+    } catch { return new Set(); }
+  }
+  function saveInboxReadIds(set) {
+    try {
+      // Cap the set at 500 so it doesn't grow forever.
+      const arr = Array.from(set).slice(-500);
+      localStorage.setItem("don:inboxReadIds:" + STATE.name, JSON.stringify(arr));
+    } catch {}
+  }
+  function markInboxItemRead(id) {
+    if (!id) return;
+    const set = readInboxReadIds();
+    set.add(id);
+    saveInboxReadIds(set);
+  }
+  function isInboxItemUnread(item, cutoff, readIds) {
+    if (readIds.has(item.id)) return false;
+    return item.at > cutoff;
+  }
 
   function collectInboxItems() {
     if (!STATE.name) return [];
@@ -1178,7 +1205,8 @@
   function unreadCount() {
     const items = collectInboxItems();
     const cutoff = readLastInboxRead();
-    return items.filter((it) => it.at > cutoff).length;
+    const readIds = readInboxReadIds();
+    return items.filter((it) => isInboxItemUnread(it, cutoff, readIds)).length;
   }
 
   function paintInboxBadge() {
@@ -1207,10 +1235,11 @@
 
     const items = collectInboxItems();
     const cutoff = readLastInboxRead();
+    const readIds = readInboxReadIds();
 
     // Split into unread (the real inbox) and read (hidden under a toggle)
-    const unreadItems = items.filter((it) => it.at > cutoff);
-    const readItems = items.filter((it) => it.at <= cutoff);
+    const unreadItems = items.filter((it) => isInboxItemUnread(it, cutoff, readIds));
+    const readItems = items.filter((it) => !isInboxItemUnread(it, cutoff, readIds));
     const showingRead = STATE.inboxShowRead === true;
 
     if (items.length === 0) {
@@ -1269,7 +1298,7 @@
 
     for (const it of toRender) {
       const meta = KIND_META[it.kind] || KIND_META.comment;
-      const unread = it.at > cutoff;
+      const unread = isInboxItemUnread(it, cutoff, readIds);
 
       if (it.kind === "digest") {
         const kindLabel = it.digestKind === "month"
@@ -1281,7 +1310,7 @@
         const bulletHtml = bullets.length
           ? `<ul class="inbox-digest-bullets">${bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`
           : "";
-        html += `<button type="button" class="inbox-item inbox-item-digest${unread ? " is-unread" : ""}" data-inboxdigest="${esc(it.digestKind)}">
+        html += `<button type="button" class="inbox-item inbox-item-digest${unread ? " is-unread" : ""}" data-inboxdigest="${esc(it.digestKind)}" data-inboxitemid="${esc(it.id)}">
           <div class="inbox-item-icon">${meta.icon}</div>
           <div class="inbox-item-body">
             <div class="inbox-item-row">
@@ -1314,7 +1343,7 @@
         contextText = esc(headline);
       }
 
-      html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}" data-inboxat="${esc(String(it.at))}">
+      html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}" data-inboxitemid="${esc(it.id)}">
         <div class="inbox-item-icon">${meta.icon}</div>
         <div class="inbox-item-body">
           <div class="inbox-item-row">
@@ -1353,18 +1382,17 @@
     panel.querySelectorAll("[data-inboxentry]").forEach((row) => {
       row.addEventListener("click", () => {
         const entryId = row.dataset.inboxentry;
-        const itemAt = Number(row.dataset.inboxat || "0");
-        // Mark THIS item (and anything older than it) as read. Items newer
-        // than it stay unread so the badge still reflects what's truly new.
-        const prevRead = readLastInboxRead();
-        if (itemAt && itemAt > prevRead) saveLastInboxRead(itemAt);
+        const itemId = row.dataset.inboxitemid;
+        // Mark ONLY this specific item as read.
+        markInboxItemRead(itemId);
         paintInboxBadge();
         openEntryDetail(entryId);
       });
     });
     panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
       row.addEventListener("click", () => {
-        saveLastInboxRead(newest);
+        const itemId = row.dataset.inboxitemid;
+        markInboxItemRead(itemId);
         STATE.activeTab = "assignments";
         syncTabUI();
         render();
