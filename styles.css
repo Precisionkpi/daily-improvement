@@ -1853,20 +1853,36 @@ select {
 .voice-status.err     { border-left-color: var(--danger); color: var(--danger); }
 
 /* ---- Language toggle ---- */
-.brand-actions { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
-.lang-btn {
+.brand-actions { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
+.lang-toggle {
+  display: inline-flex;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  color: var(--fg-muted);
   border-radius: 100px;
-  padding: 5px 10px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  font-family: inherit;
+  padding: 2px;
+  gap: 1px;
 }
-.lang-btn:hover { border-color: var(--primary); color: var(--primary); }
+.lang-opt {
+  background: transparent;
+  border: 0;
+  color: var(--fg-muted);
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border-radius: 100px;
+  min-width: 36px;
+  min-height: 28px;
+  transition: background 0.15s, color 0.15s;
+}
+.lang-opt:hover { color: var(--fg); }
+.lang-opt.is-active {
+  background: var(--primary);
+  color: var(--primary-ink);
+  box-shadow: var(--shadow-sm);
+}
 .welcome-lang {
   display: flex;
   justify-content: center;

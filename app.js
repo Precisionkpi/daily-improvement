@@ -1618,32 +1618,35 @@
   }
 
   function wireLangToggle() {
-    const btn = document.getElementById("lang-btn");
-    if (btn) {
-      btn.textContent = STATE.lang === "es" ? "ES" : "EN";
-      btn.addEventListener("click", () => {
-        STATE.lang = STATE.lang === "es" ? "en" : "es";
-        saveStoredLang(STATE.lang);
-        btn.textContent = STATE.lang === "es" ? "ES" : "EN";
-        STATE.translations = {};
-        render();
-      });
-    }
+    // Header: two-button EN/ES segmented toggle so both options are always
+    // visible and one-tap switches the active language.
+    const hEn = document.getElementById("lang-opt-en");
+    const hEs = document.getElementById("lang-opt-es");
     const wEn = document.getElementById("welcome-lang-en");
     const wEs = document.getElementById("welcome-lang-es");
-    const paintWelcome = () => {
-      if (wEn) wEn.classList.toggle("is-active", STATE.lang === "en");
-      if (wEs) wEs.classList.toggle("is-active", STATE.lang === "es");
+
+    const paintAll = () => {
+      const isEs = STATE.lang === "es";
+      if (hEn) { hEn.classList.toggle("is-active", !isEs); hEn.setAttribute("aria-checked", String(!isEs)); }
+      if (hEs) { hEs.classList.toggle("is-active",  isEs); hEs.setAttribute("aria-checked", String( isEs)); }
+      if (wEn)   wEn.classList.toggle("is-active", !isEs);
+      if (wEs)   wEs.classList.toggle("is-active",  isEs);
     };
-    paintWelcome();
-    if (wEn) wEn.addEventListener("click", () => {
-      STATE.lang = "en"; saveStoredLang("en"); paintWelcome();
-      if (btn) btn.textContent = "EN";
-    });
-    if (wEs) wEs.addEventListener("click", () => {
-      STATE.lang = "es"; saveStoredLang("es"); paintWelcome();
-      if (btn) btn.textContent = "ES";
-    });
+
+    const setLang = (lang) => {
+      if (STATE.lang === lang) return;
+      STATE.lang = lang;
+      saveStoredLang(lang);
+      STATE.translations = {};
+      paintAll();
+      render();
+    };
+
+    paintAll();
+    if (hEn) hEn.addEventListener("click", () => setLang("en"));
+    if (hEs) hEs.addEventListener("click", () => setLang("es"));
+    if (wEn) wEn.addEventListener("click", () => setLang("en"));
+    if (wEs) wEs.addEventListener("click", () => setLang("es"));
   }
 
   function renderScoreboard(improved) {
