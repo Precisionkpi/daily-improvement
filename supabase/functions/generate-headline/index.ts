@@ -38,18 +38,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch last 30 entries (excluding this one) as context for related-entry detection.
-    const { data: prior } = await supabase
-      .from("submissions")
-      .select("id,headline,problem,category,created_at")
-      .neq("id", submission_id)
-      .order("created_at", { ascending: false })
-      .limit(30);
-
-    const priorLines = (prior ?? []).map((p, i) =>
-      `${i + 1}. [${p.id}] (${p.category ?? "other"}) ${p.headline ?? p.problem.slice(0, 80)}`
-    ).join("\n");
-
     const parts = [`Problem: ${problem}`];
     if (solution) parts.push(`Solution: ${solution}`);
     if (impact) parts.push(`Impact: ${impact}`);
@@ -60,15 +48,11 @@ Deno.serve(async (req) => {
 New entry (as submitted, in the speaker's language):
 ${body}
 
-Recent entries (for finding related ones):
-${priorLines || "(none)"}
-
 Respond with ONLY a JSON object (no markdown, no prose) with these keys:
 {
   "source_lang": "en" or "es",   // language of the entry as submitted
   "category": "one of: ${CATEGORIES.join(", ")}",
   "kind": "one of: difficult (a problem/issue) or impact (a win/improvement)",
-  "related_ids": ["id1", "id2"],  // 0-3 ids from the recent entries that cover the SAME underlying issue, not just the same topic. Empty array if nothing close.
   "en": {
     "headline": "4-8 word English title, Title Case, no quotes, no period",
     "problem":  "the problem text in English",
@@ -121,10 +105,6 @@ Translation rules:
     const sourceLang = parsed.source_lang === "es" ? "es" : "en";
     const category = CATEGORIES.includes(parsed.category) ? parsed.category : "other";
     const kind = KINDS.includes(parsed.kind) ? parsed.kind : "difficult";
-    const priorIds = new Set((prior ?? []).map((p) => p.id));
-    const related = Array.isArray(parsed.related_ids)
-      ? parsed.related_ids.filter((x: any) => typeof x === "string" && priorIds.has(x)).slice(0, 3)
-      : [];
 
     const cleanLang = (o: any) => ({
       headline: String(o?.headline ?? "").replace(/^"|"$/g, "").replace(/\.+$/, "").trim(),
@@ -146,13 +126,12 @@ Translation rules:
       translations,
     };
     if (headline) update.headline = headline;
-    if (related.length) update.related_to = related;
 
     const { error: updErr } = await supabase
       .from("submissions").update(update).eq("id", submission_id);
     if (updErr) return json({ error: "db_update_failed", detail: updErr.message }, 500);
 
-    return json({ submission_id, headline, category, kind, related, source_lang: sourceLang, translations });
+    return json({ submission_id, headline, category, kind, source_lang: sourceLang, translations });
   } catch (e) {
     return json({ error: "exception", detail: String(e) }, 500);
   }

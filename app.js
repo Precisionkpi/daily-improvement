@@ -403,7 +403,6 @@
     renderWelcomeScreen();
     render();
     wireTabs();
-    wireNotifBtn();
 
     wireLangToggle();
     await loadAll();
@@ -2224,9 +2223,6 @@
     root.querySelectorAll("[data-editchecklist]").forEach((btn) => {
       btn.addEventListener("click", () => openChecklistModal(btn.dataset.editchecklist));
     });
-    root.querySelectorAll("[data-linkrelated]").forEach((btn) => {
-      btn.addEventListener("click", () => openRelatedModal(btn.dataset.linkrelated));
-    });
     root.querySelectorAll("[data-checktoggle]").forEach((row) => {
       row.addEventListener("click", () => {
         const [entryId, itemId] = row.dataset.checktoggle.split(":");
@@ -2398,68 +2394,6 @@
     } catch (e) { console.error(e); showToast("Couldn't update."); }
   }
 
-  // ---- Related entries picker ----
-  function openRelatedModal(entryId) {
-    if (!STATE.name) { showToast("Pick your name on Submit first."); return; }
-    const entry = STATE.submissions.find((s) => s.id === entryId);
-    if (!entry) return;
-    const current = new Set((Array.isArray(entry.relatedTo) ? entry.relatedTo : []));
-    const candidates = STATE.submissions
-      .filter((s) => s.id !== entryId)
-      .slice()
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-      .slice(0, 60);
-
-    const backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop";
-    backdrop.innerHTML = `
-      <div class="modal" role="dialog" aria-modal="true">
-        <h3>Link related entries</h3>
-        <p>Pick other entries this one relates to.</p>
-        <div class="related-picker" id="rp-list">
-          ${candidates.map((c) => {
-            const emoji = c.kind === "impact" ? "💡" : "🪓";
-            const snippet = (c.problem || "").slice(0, 100) + ((c.problem || "").length > 100 ? "…" : "");
-            return `<div class="related-pick-row ${current.has(c.id) ? "selected" : ""}" data-rpid="${esc(c.id)}">
-              <span class="related-pick-check">${current.has(c.id) ? "✓" : ""}</span>
-              <div class="related-pick-body">
-                <strong>${emoji} ${esc(c.name || "")}</strong>
-                <div class="snippet">${esc(snippet)}</div>
-              </div>
-            </div>`;
-          }).join("")}
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-ghost" id="rp-cancel">Cancel</button>
-          <button class="btn" id="rp-save" style="width:auto;background:var(--primary);">Save</button>
-        </div>
-      </div>`;
-    document.body.appendChild(backdrop);
-    backdrop.querySelectorAll(".related-pick-row").forEach((row) => {
-      row.addEventListener("click", () => {
-        const rid = row.dataset.rpid;
-        if (current.has(rid)) current.delete(rid); else current.add(rid);
-        row.classList.toggle("selected");
-        const check = row.querySelector(".related-pick-check");
-        if (check) check.textContent = current.has(rid) ? "✓" : "";
-      });
-    });
-    const close = () => backdrop.remove();
-    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
-    backdrop.querySelector("#rp-cancel").addEventListener("click", close);
-    backdrop.querySelector("#rp-save").addEventListener("click", async () => {
-      close();
-      await saveRelated(entryId, Array.from(current));
-    });
-  }
-  async function saveRelated(entryId, ids) {
-    try {
-      const { error } = await sb.from("submissions").update({ related_to: ids }).eq("id", entryId);
-      if (error) throw error;
-      showToast(ids.length ? "Related entries linked ✓" : "Links cleared");
-    } catch (e) { console.error(e); showToast("Couldn't save links."); }
-  }
-
   function filteredSubs() {
     let list = STATE.submissions.slice();
     if (STATE.filter === "progress") list = list.filter((s) => s.status !== "improved");
@@ -2554,7 +2488,6 @@
 
     const checklistBlock = renderChecklist(s);
     const updatesBlock = renderUpdates(s.id);
-    const relatedRow = renderRelated(s);
 
     const assignees = getAssignees(s);
     const assignedSection = effectiveStatus === "assigned" && assignees.length > 0
@@ -2593,7 +2526,6 @@
       ? `<div class="entry-mini-actions">
           <button class="mini-btn" data-postupdate="${esc(s.id)}">+ Update</button>
           <button class="mini-btn" data-editchecklist="${esc(s.id)}">${s.checklist && s.checklist.length ? "Edit checklist" : "+ Checklist"}</button>
-          <button class="mini-btn" data-linkrelated="${esc(s.id)}">+ Link related</button>
         </div>`
       : "";
 
@@ -2618,7 +2550,6 @@
         ${assignedSection}
         ${improvedSection}
         ${updatesBlock}
-        ${relatedRow}
         ${reactionRow}
         ${commentsBlock}
         ${miniActions}
@@ -2660,22 +2591,6 @@
       <div class="updates-label">📌 Updates <span class="count">${list.length}</span></div>
       ${rows}
     </div>`;
-  }
-
-  function renderRelated(s) {
-    const ids = Array.isArray(s.relatedTo) ? s.relatedTo : [];
-    if (ids.length === 0) return "";
-    const chips = ids.map((rid) => {
-      const target = STATE.submissions.find((x) => x.id === rid);
-      if (!target) return "";
-      const emoji = (target.kind === "impact") ? "💡" : "🪓";
-      const label = (target.problem || "").slice(0, 46) + ((target.problem || "").length > 46 ? "…" : "");
-      return `<button class="related-chip" data-openrelated="${esc(rid)}" title="${esc(target.problem || "")}">
-        <span class="emoji">${emoji}</span>${esc(label)}
-      </button>`;
-    }).join("");
-    if (!chips) return "";
-    return `<div class="related-row"><span class="related-label">Related:</span>${chips}</div>`;
   }
 
   function renderPhotoGrid(photos) {
