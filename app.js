@@ -1719,6 +1719,10 @@
           ${basis}
         </div>`;
       }
+      // Reactions on the digest — shared with the modal view via the same
+      // "digest:week:..." synthetic id, so a 🔥 here shows up there too.
+      const weekDigestId = `digest:week:${(w.week_start || "").slice(0, 10)}`;
+      out += renderReactionRow(weekDigestId);
       if (wL.wins && wL.wins.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsWins"))}</div><ul>${wL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
@@ -1732,6 +1736,7 @@
     out += `</div>`;
 
     if (m && mL && mL.exec_summary) {
+      const monthDigestId = `digest:month:${(m.month_start || "").slice(0, 7)}`;
       out += `<div class="insights insights-month">
         <div class="insights-head">
           <span class="insights-title">${esc(t("insightsMonth"))} ${esc(m.month)}</span>
@@ -1744,6 +1749,7 @@
       if (mL.themes && mL.themes.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${mL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
       }
+      out += renderReactionRow(monthDigestId);
       out += `</div>`;
     }
     return out;
