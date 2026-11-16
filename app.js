@@ -1314,7 +1314,7 @@
         contextText = esc(headline);
       }
 
-      html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}">
+      html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}" data-inboxat="${esc(String(it.at))}">
         <div class="inbox-item-icon">${meta.icon}</div>
         <div class="inbox-item-body">
           <div class="inbox-item-row">
@@ -1353,9 +1353,11 @@
     panel.querySelectorAll("[data-inboxentry]").forEach((row) => {
       row.addEventListener("click", () => {
         const entryId = row.dataset.inboxentry;
-        // Open the entry in a modal overlay instead of leaving the inbox.
-        // Mark things read up to this item's timestamp so the badge clears.
-        saveLastInboxRead(newest);
+        const itemAt = Number(row.dataset.inboxat || "0");
+        // Mark THIS item (and anything older than it) as read. Items newer
+        // than it stay unread so the badge still reflects what's truly new.
+        const prevRead = readLastInboxRead();
+        if (itemAt && itemAt > prevRead) saveLastInboxRead(itemAt);
         paintInboxBadge();
         openEntryDetail(entryId);
       });
