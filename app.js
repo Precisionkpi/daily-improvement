@@ -60,9 +60,15 @@
   // Web Speech API recognition — browser-side transcription, free, no key.
   // On stop, we send the transcript through structure-entry so Claude splits it
   // into problem / solution / impact and fills in the form.
-  function wireVoiceButton() {
-    const btn = document.getElementById("voice-btn");
-    const status = document.getElementById("voice-status");
+  // Wire a single speak-to-text button. `opts`:
+  //   btnId     — id of the button element
+  //   statusId  — id of the inline status element beside it
+  //   mode      — "structure" (send through structure-entry, fill multiple fields)
+  //             or "raw" (just drop the transcript into `targetId`)
+  //   targetId  — id of the textarea to fill in raw mode
+  function wireVoiceButton(opts) {
+    const btn = document.getElementById(opts.btnId);
+    const status = document.getElementById(opts.statusId);
     if (!btn) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
@@ -95,9 +101,26 @@
       if (label) label.textContent = "Stop";
     }
 
-    async function structureAndFill(transcript) {
+    async function handleTranscript(transcript) {
       if (processed) return;
       processed = true;
+
+      if (opts.mode === "raw") {
+        // Simple path: append (or set if empty) the transcript directly into
+        // the target textarea. No Claude call needed.
+        const el = document.getElementById(opts.targetId);
+        if (el) {
+          el.value = el.value && el.value.trim()
+            ? el.value.trimEnd() + " " + transcript
+            : transcript;
+        }
+        setStatus("Added — edit as needed.", "done");
+        setTimeout(() => setStatus(""), 3000);
+        return;
+      }
+
+      // "structure" mode: send through the Edge Function so Claude splits
+      // the transcript into problem / solution / impact and auto-picks kind.
       setStatus("Claude is writing it up…", "working");
       btn.disabled = true;
       try {
@@ -118,7 +141,6 @@
         setTimeout(() => setStatus(""), 4000);
       } catch (err) {
         console.warn("structure failed", err);
-        // Fallback: drop the raw transcript into the problem field.
         const p = document.getElementById("f-problem");
         if (p) p.value = transcript;
         setStatus("Couldn't auto-structure — put the raw transcript in. Edit it before submitting.", "err");
@@ -129,12 +151,11 @@
     }
 
     function finish(reason) {
-      // Called from click-stop, onend, or the safety timer. Idempotent.
       if (!listening && processed) return;
       uiToIdle();
       const t = fullTranscript.trim();
       if (t.length < 3) {
-        processed = true; // prevent any lingering onend from processing empty
+        processed = true;
         setStatus(
           reason === "timeout"
             ? "Stopped after 60s — tap Speak again if you want another go."
@@ -144,7 +165,7 @@
         setTimeout(() => setStatus(""), 4000);
         return;
       }
-      structureAndFill(t);
+      handleTranscript(t);
     }
 
     function start() {
@@ -181,7 +202,6 @@
         uiToIdle();
       };
       recog.onend = () => {
-        // Browser auto-ended (e.g. silence). Process whatever we got.
         if (processed) return;
         finish("auto");
       };
@@ -189,7 +209,6 @@
         recog.start();
         uiToRecording();
         setStatus("Listening — tap Stop when you're done.", "working");
-        // Safety: auto-stop after 60s so a forgotten tap doesn't keep the mic hot.
         safetyTimer = setTimeout(() => {
           try { if (recog) recog.stop(); } catch (_e) {}
           finish("timeout");
@@ -201,10 +220,8 @@
     }
 
     function stop() {
-      // Immediately reset the UI so the button is never visually stuck.
       if (!listening) return;
       if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
-      // Try to stop the recognizer; also abort in case stop() is slow or ignored.
       if (recog) {
         try { recog.stop();  } catch (_e) {}
         try { recog.abort(); } catch (_e) {}
@@ -217,6 +234,12 @@
       if (listening) stop();
       else start();
     });
+  }
+
+  function wireAllVoiceButtons() {
+    wireVoiceButton({ btnId: "voice-btn",        statusId: "voice-status",        mode: "structure" });
+    wireVoiceButton({ btnId: "voice-btn-impact", statusId: "voice-status-impact", mode: "raw", targetId: "f-impact" });
+    wireVoiceButton({ btnId: "voice-btn-sol",    statusId: "voice-status-sol",    mode: "raw", targetId: "f-solution" });
   }
 
   const NAMES = [
@@ -809,11 +832,23 @@
           <div class="photos" id="photos-problem" data-field="problem"></div>
         </div>
         <div class="field">
-          <label for="f-impact">Impact <span class="optional">(optional — what it costs us if we don't address it)</span></label>
+          <div class="field-head">
+            <label for="f-impact">Impact <span class="optional">(optional — what it costs us if we don't address it)</span></label>
+            <button type="button" class="voice-btn" id="voice-btn-impact" aria-label="Speak the impact" title="Tap to dictate the impact">
+              <span class="voice-icon">🎤</span><span class="voice-label">Speak</span>
+            </button>
+          </div>
+          <div class="voice-status" id="voice-status-impact" hidden></div>
           <textarea id="f-impact" name="impact" maxlength="400" placeholder="e.g. Crew loses 20 min each morning · customer visits pushed back"></textarea>
         </div>
         <div class="field">
-          <label for="f-solution">${solutionLabel} <span class="optional">(optional)</span></label>
+          <div class="field-head">
+            <label for="f-solution">${solutionLabel} <span class="optional">(optional)</span></label>
+            <button type="button" class="voice-btn" id="voice-btn-sol" aria-label="Speak the solution" title="Tap to dictate the solution">
+              <span class="voice-icon">🎤</span><span class="voice-label">Speak</span>
+            </button>
+          </div>
+          <div class="voice-status" id="voice-status-sol" hidden></div>
           <textarea id="f-solution" name="solution" maxlength="800" placeholder="${esc(solutionPlaceholder)}"></textarea>
           <div class="photos" id="photos-solution" data-field="solution"></div>
         </div>
@@ -877,7 +912,7 @@
       });
     });
 
-    wireVoiceButton();
+    wireAllVoiceButtons();
 
     const aSel = document.getElementById("f-assign-a");
     const bSel = document.getElementById("f-assign-b");
