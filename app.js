@@ -1367,7 +1367,7 @@
       }
 
       const backLink = !unread
-        ? `<span class="inbox-moveback" data-moveback="${esc(it.id)}" role="button" tabindex="0" title="Move back to inbox">↩ Move back</span>`
+        ? `<span class="inbox-moveback" data-moveback="${esc(it.id)}" role="button" tabindex="0" title="Move back to inbox">↩ Move back to inbox</span>`
         : "";
       html += `<div class="inbox-item-wrap">
         <button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}" data-inboxitemid="${esc(it.id)}">
@@ -3001,7 +3001,7 @@
     STATE.openCommentThread = entryId;
 
     const keepBtn = fromInboxItemId
-      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="Push this back to the inbox as unread">↩ Keep in inbox</button>`
+      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="Push this back to the inbox as unread">↩ Move back to inbox</button>`
       : "";
 
     const el = document.createElement("div");
