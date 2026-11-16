@@ -331,7 +331,7 @@
     en: {
       tabSubmit: "Submit", tabMine: "Mine", tabInbox: "Inbox",
       tabFeed: "Feed", tabScoreboard: "Scoreboard",
-      statWeek: "This week", statProgress: "In progress", statImproved: "Improved",
+      statWeek: "This week", statProgress: "In progress", statImproved: "Completed",
       inboxUnread: "Unread", inboxAll: "All",
       inboxMarkAllRead: "Mark all read",
       inboxFor: "Inbox for",
@@ -343,12 +343,12 @@
       inboxEmptyUnread: "You're caught up ✨",
       inboxEmptyRead: "Nothing to show.",
       kindClaudeCheckin: "Claude check-in", kindNewComment: "New comment",
-      kindStatusUpdate: "Status update", kindMarkedImproved: "Marked improved",
+      kindStatusUpdate: "Status update", kindMarkedImproved: "Marked completed",
       kindWeeklyDigest: "Weekly digest",
       kindNewProblem: "New problem logged", kindNewImpact: "New impact logged",
       roleYourEntry: "Your entry", roleAssigned: "Assigned to you",
       roleFromTeam: "From the team", roleForCrew: "For the whole crew · tap to open in Scoreboard",
-      markedImprovedBy: "marked this improved",
+      markedImprovedBy: "marked this completed",
       posted: "posted",
       entryLabelProblem: "The problem", entryLabelMove: "The move",
       entryLabelImpact: "IMPACT", entryLabelSolution: "SOLUTION",
@@ -383,7 +383,7 @@
     es: {
       tabSubmit: "Enviar", tabMine: "Míos", tabInbox: "Buzón",
       tabFeed: "Actividad", tabScoreboard: "Marcador",
-      statWeek: "Esta semana", statProgress: "En progreso", statImproved: "Mejorado",
+      statWeek: "Esta semana", statProgress: "En progreso", statImproved: "Completado",
       inboxUnread: "Sin leer", inboxAll: "Todos",
       inboxMarkAllRead: "Marcar todo leído",
       inboxFor: "Buzón de",
@@ -395,12 +395,12 @@
       inboxEmptyUnread: "Estás al día ✨",
       inboxEmptyRead: "Nada que mostrar.",
       kindClaudeCheckin: "Mensaje de Claude", kindNewComment: "Comentario nuevo",
-      kindStatusUpdate: "Cambio de estado", kindMarkedImproved: "Marcado mejorado",
+      kindStatusUpdate: "Cambio de estado", kindMarkedImproved: "Marcado completado",
       kindWeeklyDigest: "Resumen semanal",
       kindNewProblem: "Nuevo problema", kindNewImpact: "Nueva mejora",
       roleYourEntry: "Tu entrada", roleAssigned: "Asignado a ti",
       roleFromTeam: "Del equipo", roleForCrew: "Para todo el equipo · toca para ver en Marcador",
-      markedImprovedBy: "marcó esto como mejorado",
+      markedImprovedBy: "marcó esto como completado",
       posted: "publicó",
       entryLabelProblem: "El problema", entryLabelMove: "La mejora",
       entryLabelImpact: "IMPACTO", entryLabelSolution: "SOLUCIÓN",
@@ -878,7 +878,7 @@
           <label>Status</label>
           <div class="status-choice" role="radiogroup" aria-label="Status">
             <button type="button" class="status-opt" data-status="assigned" aria-pressed="${STATE.submitStatus === 'assigned'}">In progress</button>
-            <button type="button" class="status-opt" data-status="improved" aria-pressed="${STATE.submitStatus === 'improved'}">${isImpact ? 'Completed' : 'Solved'}</button>
+            <button type="button" class="status-opt" data-status="improved" aria-pressed="${STATE.submitStatus === 'improved'}">Completed</button>
           </div>
         </div>
         <div class="field" id="assign-field">
@@ -1139,7 +1139,7 @@
         <button class="chip" aria-pressed="${STATE.filter === 'all'}" data-f="all">All (${subs.length})</button>
         <button class="chip" aria-pressed="${STATE.filter === 'week'}" data-f="week">This week (${weekCount})</button>
         <button class="chip" aria-pressed="${STATE.filter === 'progress'}" data-f="progress">In progress (${subs.filter(s=>s.status!=='improved').length})</button>
-        <button class="chip" aria-pressed="${STATE.filter === 'improved'}" data-f="improved">Improved (${subs.filter(s=>s.status==='improved').length})</button>
+        <button class="chip" aria-pressed="${STATE.filter === 'improved'}" data-f="improved">Completed (${subs.filter(s=>s.status==='improved').length})</button>
         <button class="chip" aria-pressed="${STATE.filter === 'mine'}" data-f="mine">Just mine</button>
         <button class="chip" aria-pressed="${STATE.filter === 'byperson'}" data-f="byperson">By person</button>
       </div>`;
@@ -1520,9 +1520,7 @@
       // progress or already solved so each inbox row carries that context.
       const entryStatus = it.entry.status || "assigned";
       const isImpactKind = it.entry.kind === "impact";
-      const statusLabel = entryStatus === "improved"
-        ? (isImpactKind ? "Completed" : "Solved")
-        : "In progress";
+      const statusLabel = entryStatus === "improved" ? "Completed" : "In progress";
       const statusCls = entryStatus === "improved" ? "status-improved" : "status-progress";
       const statusChip = `<span class="inbox-item-status ${statusCls}">${esc(statusLabel)}</span>`;
 
@@ -2612,7 +2610,7 @@
 
     const effectiveStatus = status === "improved" ? "improved" : "assigned";
     let statusLabel;
-    if (effectiveStatus === "improved") statusLabel = isImpact ? "Completed" : "Improved";
+    if (effectiveStatus === "improved") statusLabel = "Completed";
     else statusLabel = "In progress";
 
     let pillHtml;
@@ -2664,7 +2662,7 @@
     const improvedSection = status === "improved" && s.improvedNote && s.improvedNote !== s.solution
       ? `<div class="entry-section improved"><span class="entry-section-label">${improvedLabelBase} ${s.improvedBy ? "— " + esc(s.improvedBy) : ""}</span><div class="section-body">${esc(s.improvedNote)}</div><div class="meta">${s.improvedAt ? "Completed " + formatDate(s.improvedAt) : ""}</div></div>`
       : (status === "improved"
-          ? `<div class="improved-line"><span>✓ ${isImpact ? "Completed" : "Marked improved"}${s.improvedBy ? " by " + esc(s.improvedBy) : ""}</span>${s.improvedAt ? `<span class="improved-line-date">${esc(formatDate(s.improvedAt))}</span>` : ""}</div>`
+          ? `<div class="improved-line"><span>✓ Completed${s.improvedBy ? " by " + esc(s.improvedBy) : ""}</span>${s.improvedAt ? `<span class="improved-line-date">${esc(formatDate(s.improvedAt))}</span>` : ""}</div>`
           : "");
 
     const reactionRow = renderReactionRow(s.id);
@@ -2676,10 +2674,10 @@
     if (STATE.isOwner) {
       if (effectiveStatus === "assigned") {
         buttons.push(`<button class="btn btn-ghost" data-assign="${esc(s.id)}">Reassign</button>`);
-        buttons.push(`<button class="btn btn-ghost" data-complete="${esc(s.id)}">Mark improved</button>`);
+        buttons.push(`<button class="btn btn-ghost" data-complete="${esc(s.id)}">Mark complete</button>`);
         buttons.push(`<button class="btn btn-ghost" data-del="${esc(s.id)}" style="color:var(--danger);">Delete</button>`);
       } else if (effectiveStatus === "improved") {
-        buttons.push(`<button class="btn btn-ghost" data-undo="${esc(s.id)}">Undo improved</button>`);
+        buttons.push(`<button class="btn btn-ghost" data-undo="${esc(s.id)}">Reopen</button>`);
         buttons.push(`<button class="btn btn-ghost" data-del="${esc(s.id)}" style="color:var(--danger);">Delete</button>`);
       }
     } else if (STATE.name && effectiveStatus === "assigned") {
@@ -3118,7 +3116,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" id="d-cancel">Cancel</button>
-          <button class="btn" id="d-save" style="width:auto;background:var(--improved);">Mark improved</button>
+          <button class="btn" id="d-save" style="width:auto;background:var(--improved);">Mark complete</button>
         </div>
       </div>`;
     document.body.appendChild(backdrop);
