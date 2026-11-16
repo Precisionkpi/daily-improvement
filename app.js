@@ -1284,23 +1284,7 @@
       return;
     }
 
-    if (unreadItems.length === 0 && !showingRead) {
-      panel.innerHTML = `<div class="empty">
-        <div class="empty-title">Inbox zero ✨</div>
-        <p>You're caught up. ${readItems.length} earlier ${readItems.length === 1 ? "item" : "items"} are hidden.</p>
-        <button type="button" class="btn btn-ghost" id="inbox-show-read" style="margin-top:12px;">Show previous ${readItems.length}</button>
-      </div>`;
-      panel.querySelector("#inbox-show-read")?.addEventListener("click", () => {
-        STATE.inboxShowRead = true;
-        render();
-      });
-      saveLastInboxRead(Date.now());
-      paintInboxBadge();
-      return;
-    }
-
-    // Decide which items to actually render. By default we render only unread;
-    // when the toggle is on we render everything and visually separate them.
+    // Decide which items to render based on the Unread/All subtab selection.
     const toRender = showingRead ? items : unreadItems;
     const newest = items[0].at;
 
@@ -1314,19 +1298,26 @@
       "new-impact":  { icon: "💡", label: "New impact logged" },
     };
 
-    const subLine = showingRead
-      ? `Showing everything — ${unreadItems.length} unread, ${readItems.length} earlier.`
-      : `${unreadItems.length} unread${readItems.length > 0 ? ` · ${readItems.length} earlier hidden` : ""}.`;
-
     let html = `<div class="inbox">
       <div class="inbox-head">
         <div>
           <div class="inbox-title">Inbox for ${esc(STATE.name)}</div>
-          <div class="inbox-sub">${subLine}</div>
         </div>
         <button type="button" class="link-btn" id="inbox-mark-read">Mark all read</button>
       </div>
+      <div class="inbox-subtabs" role="tablist">
+        <button type="button" class="inbox-subtab${!showingRead ? " is-active" : ""}" data-subtab="unread" role="tab" aria-selected="${!showingRead}">
+          Unread <span class="inbox-subtab-count">${unreadItems.length}</span>
+        </button>
+        <button type="button" class="inbox-subtab${showingRead ? " is-active" : ""}" data-subtab="all" role="tab" aria-selected="${showingRead}">
+          All <span class="inbox-subtab-count">${items.length}</span>
+        </button>
+      </div>
       <div class="inbox-list">`;
+
+    if (toRender.length === 0) {
+      html += `<div class="inbox-empty-section">${showingRead ? "Nothing to show." : "You're caught up ✨"}</div>`;
+    }
 
     for (const it of toRender) {
       const meta = KIND_META[it.kind] || KIND_META.comment;
@@ -1395,19 +1386,19 @@
       </div>`;
     }
 
-    html += `</div>`;
-    if (!showingRead && readItems.length > 0) {
-      html += `<div class="inbox-footer"><button type="button" class="link-btn" id="inbox-show-read-footer">Show ${readItems.length} earlier ${readItems.length === 1 ? "item" : "items"}</button></div>`;
-    } else if (showingRead && readItems.length > 0) {
-      html += `<div class="inbox-footer"><button type="button" class="link-btn" id="inbox-hide-read">Hide earlier items</button></div>`;
-    }
-    html += `</div>`;
+    html += `</div></div>`;
     panel.innerHTML = html;
 
     panel.querySelector("#inbox-mark-read")?.addEventListener("click", () => {
       saveLastInboxRead(newest);
       STATE.inboxShowRead = false;
       render();
+    });
+    panel.querySelectorAll(".inbox-subtab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        STATE.inboxShowRead = btn.dataset.subtab === "all";
+        render();
+      });
     });
     panel.querySelectorAll("[data-moveback]").forEach((link) => {
       link.addEventListener("click", (ev) => {
@@ -1416,14 +1407,6 @@
         keepInboxItemUnread(link.dataset.moveback);
         render();
       });
-    });
-    panel.querySelector("#inbox-show-read-footer")?.addEventListener("click", () => {
-      STATE.inboxShowRead = true;
-      render();
-    });
-    panel.querySelector("#inbox-hide-read")?.addEventListener("click", () => {
-      STATE.inboxShowRead = false;
-      render();
     });
     panel.querySelectorAll("[data-inboxentry]").forEach((row) => {
       row.addEventListener("click", () => {

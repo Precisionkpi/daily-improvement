@@ -2093,6 +2093,60 @@ select {
   border-top: 1px dashed var(--border);
   text-align: center;
 }
+.inbox-subtabs {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 12px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.inbox-subtab {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  border-radius: calc(var(--radius) - 4px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+.inbox-subtab:hover { color: var(--fg); }
+.inbox-subtab.is-active {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-sm);
+}
+.inbox-subtab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  background: var(--border);
+  color: var(--fg-muted);
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.inbox-subtab.is-active .inbox-subtab-count {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+.inbox-empty-section {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
 .inbox-item-wrap {
   position: relative;
   display: flex;
