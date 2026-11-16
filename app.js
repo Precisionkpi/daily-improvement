@@ -2659,8 +2659,11 @@
     const updatesBlock = renderUpdates(s.id);
 
     const assignees = getAssignees(s);
+    const assignNoteText = (s.assignmentNote && s.assignmentNote.trim())
+      ? s.assignmentNote
+      : (localizedSolution && localizedSolution.trim() ? localizedSolution : "");
     const assignedSection = effectiveStatus === "assigned" && assignees.length > 0
-      ? `<div class="entry-section assigned"><span class="entry-section-label">Assigned to ${esc(formatAssignees(assignees))}</span><div class="section-body">${s.assignmentNote ? esc(s.assignmentNote) : "No instructions yet."}</div><div class="meta">Assigned${s.assignedBy ? " by " + esc(s.assignedBy) : ""}${s.assignedAt ? " · " + formatDate(s.assignedAt) : ""}</div></div>`
+      ? `<div class="entry-section assigned"><span class="entry-section-label">Assigned to ${esc(formatAssignees(assignees))}</span><div class="section-body">${assignNoteText ? esc(assignNoteText) : esc(t("noInstructions"))}</div><div class="meta">Assigned${s.assignedBy ? " by " + esc(s.assignedBy) : ""}${s.assignedAt ? " · " + formatDate(s.assignedAt) : ""}</div></div>`
       : "";
 
     const improvedLabelBase = isImpact ? "Completed" : "Fix";
@@ -3015,7 +3018,12 @@
     const entry = STATE.submissions.find((s) => s.id === id);
     if (!entry) return;
     const current = getAssignees(entry);
-    const currentNote = entry.assignmentNote || "";
+    // If the submitter already wrote a Potential Solution, use it to seed the
+    // assignment note — otherwise they'd have to retype the same instructions.
+    const solutionSeed = localized(entry, "solution") || entry.solution || "";
+    const currentNote = (entry.assignmentNote && entry.assignmentNote.trim())
+      ? entry.assignmentNote
+      : (solutionSeed.trim() ? solutionSeed : "");
     const hasAny = current.length > 0;
     const draft = { assignees: current.length ? current.slice() : [""] };
 
