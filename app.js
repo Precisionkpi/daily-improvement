@@ -1117,6 +1117,22 @@
         });
       }
     }
+
+    // New entries posted by other crew members — everyone sees them so nobody
+    // misses something the team flagged. Skipped for your own submissions.
+    for (const s of STATE.submissions) {
+      if (s.name === me) continue;
+      if (!s.createdAt) continue;
+      items.push({
+        kind: s.kind === "impact" ? "new-impact" : "new-problem",
+        entry: s,
+        role: "team",
+        who: s.name,
+        text: localized(s, "headline") || localized(s, "problem").slice(0, 100),
+        at: new Date(s.createdAt).getTime(),
+        id: "new-" + s.id,
+      });
+    }
     // AI insights: the weekly digest and last month's report go into every
     // crew member's inbox so nobody misses them. One item per digest; the
     // "created" timestamp is the digest's week_start / month_start so the
@@ -1201,11 +1217,13 @@
     const newest = items[0].at;
 
     const KIND_META = {
-      nudge:    { icon: "🤖", label: "Claude check-in" },
-      comment:  { icon: "💬", label: "New comment" },
-      update:   { icon: "📝", label: "Status update" },
-      improved: { icon: "✅", label: "Marked improved" },
-      digest:   { icon: "📊", label: "Weekly digest" },
+      nudge:       { icon: "🤖", label: "Claude check-in" },
+      comment:     { icon: "💬", label: "New comment" },
+      update:      { icon: "📝", label: "Status update" },
+      improved:    { icon: "✅", label: "Marked improved" },
+      digest:      { icon: "📊", label: "Weekly digest" },
+      "new-problem": { icon: "🪓", label: "New problem logged" },
+      "new-impact":  { icon: "💡", label: "New impact logged" },
     };
 
     let html = `<div class="inbox">
@@ -1248,8 +1266,23 @@
         continue;
       }
 
-      const roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
+      let roleTag, bodyText, contextText;
       const headline = localized(it.entry, "headline") || localized(it.entry, "problem").slice(0, 80);
+
+      if (it.kind === "new-problem" || it.kind === "new-impact") {
+        roleTag = "From the team";
+        bodyText = `${esc(it.who)} posted: ${esc(it.text)}`;
+        contextText = "";
+      } else if (it.kind === "improved") {
+        roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
+        bodyText = `${esc(it.who)} marked this improved`;
+        contextText = esc(headline);
+      } else {
+        roleTag = it.role === "submitter" ? "Your entry" : "Assigned to you";
+        bodyText = `${esc(it.who)}: ${esc(it.text)}`;
+        contextText = esc(headline);
+      }
+
       html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}">
         <div class="inbox-item-icon">${meta.icon}</div>
         <div class="inbox-item-body">
@@ -1257,8 +1290,8 @@
             <span class="inbox-item-kind">${meta.label}</span>
             <span class="inbox-item-when">${timeAgo(it.at)}</span>
           </div>
-          <div class="inbox-item-text">${esc(it.who)}${it.kind === "improved" ? " marked this improved" : ": "}${it.kind === "improved" ? "" : esc(it.text)}</div>
-          <div class="inbox-item-context"><span class="inbox-item-role">${roleTag}</span> · ${esc(headline)}</div>
+          <div class="inbox-item-text">${bodyText}</div>
+          <div class="inbox-item-context"><span class="inbox-item-role">${roleTag}</span>${contextText ? " · " + contextText : ""}</div>
         </div>
         ${unread ? '<div class="inbox-dot" aria-label="unread"></div>' : ''}
       </button>`;
