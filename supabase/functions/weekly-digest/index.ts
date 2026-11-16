@@ -59,6 +59,9 @@ Deno.serve(async (req) => {
         open: [],
         patterns: [],
         active_people: [],
+        en: { summary: "No entries logged this week yet — the climb is paused.", wins: [], open: [], patterns: [], active_people: [] },
+        es: { summary: "Nada registrado esta semana aún — el ascenso está en pausa.", wins: [], open: [], patterns: [], active_people: [] },
+        entry_count: 0,
         week_start: weekStart.toISOString(),
         week_end: weekEnd.toISOString(),
       };

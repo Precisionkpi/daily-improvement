@@ -409,16 +409,12 @@
     subscribeRealtime();
     // Kick off background AI chores (no blocking) + pre-fetch the digests so
     // the inbox can show them without an extra wait when the user opens it.
+    // The prefetch delegates to ensureDigestsLoaded so the current-week
+    // fallback-to-last-week logic runs here too; otherwise this prefetch
+    // would overwrite the good fallback with the empty current-week digest.
     setTimeout(() => {
       fnCall(FN.nudge, {}, { background: true });
-      fnCall(FN.weekly, {}).then((out) => {
-        STATE.insights.weekly = out;
-        render();
-      }).catch(() => {});
-      fnCall(FN.monthly, { month_offset: -1 }).then((out) => {
-        STATE.insights.monthly = out;
-        render();
-      }).catch(() => {});
+      ensureDigestsLoaded();
     }, 2500);
   }
 
