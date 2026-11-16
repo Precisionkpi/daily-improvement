@@ -1203,17 +1203,39 @@
     const items = collectInboxItems();
     const cutoff = readLastInboxRead();
 
+    // Split into unread (the real inbox) and read (hidden under a toggle)
+    const unreadItems = items.filter((it) => it.at > cutoff);
+    const readItems = items.filter((it) => it.at <= cutoff);
+    const showingRead = STATE.inboxShowRead === true;
+
     if (items.length === 0) {
       panel.innerHTML = `<div class="empty">
         <div class="empty-title">Nothing in your inbox</div>
-        <p>You'll see comments, Claude's check-ins, and status changes on the entries you submitted or are assigned to.</p>
+        <p>You'll see comments, Claude's check-ins, and new entries from the crew here.</p>
       </div>`;
-      // Reset the read timestamp so the badge is accurate
       saveLastInboxRead(Date.now());
       paintInboxBadge();
       return;
     }
 
+    if (unreadItems.length === 0 && !showingRead) {
+      panel.innerHTML = `<div class="empty">
+        <div class="empty-title">Inbox zero ✨</div>
+        <p>You're caught up. ${readItems.length} earlier ${readItems.length === 1 ? "item" : "items"} are hidden.</p>
+        <button type="button" class="btn btn-ghost" id="inbox-show-read" style="margin-top:12px;">Show previous ${readItems.length}</button>
+      </div>`;
+      panel.querySelector("#inbox-show-read")?.addEventListener("click", () => {
+        STATE.inboxShowRead = true;
+        render();
+      });
+      saveLastInboxRead(Date.now());
+      paintInboxBadge();
+      return;
+    }
+
+    // Decide which items to actually render. By default we render only unread;
+    // when the toggle is on we render everything and visually separate them.
+    const toRender = showingRead ? items : unreadItems;
     const newest = items[0].at;
 
     const KIND_META = {
@@ -1226,17 +1248,21 @@
       "new-impact":  { icon: "💡", label: "New impact logged" },
     };
 
+    const subLine = showingRead
+      ? `Showing everything — ${unreadItems.length} unread, ${readItems.length} earlier.`
+      : `${unreadItems.length} unread${readItems.length > 0 ? ` · ${readItems.length} earlier hidden` : ""}.`;
+
     let html = `<div class="inbox">
       <div class="inbox-head">
         <div>
           <div class="inbox-title">Inbox for ${esc(STATE.name)}</div>
-          <div class="inbox-sub">Comments and updates on entries you submitted or are assigned to.</div>
+          <div class="inbox-sub">${subLine}</div>
         </div>
         <button type="button" class="link-btn" id="inbox-mark-read">Mark all read</button>
       </div>
       <div class="inbox-list">`;
 
-    for (const it of items) {
+    for (const it of toRender) {
       const meta = KIND_META[it.kind] || KIND_META.comment;
       const unread = it.at > cutoff;
 
@@ -1297,11 +1323,26 @@
       </button>`;
     }
 
-    html += `</div></div>`;
+    html += `</div>`;
+    if (!showingRead && readItems.length > 0) {
+      html += `<div class="inbox-footer"><button type="button" class="link-btn" id="inbox-show-read-footer">Show ${readItems.length} earlier ${readItems.length === 1 ? "item" : "items"}</button></div>`;
+    } else if (showingRead && readItems.length > 0) {
+      html += `<div class="inbox-footer"><button type="button" class="link-btn" id="inbox-hide-read">Hide earlier items</button></div>`;
+    }
+    html += `</div>`;
     panel.innerHTML = html;
 
     panel.querySelector("#inbox-mark-read")?.addEventListener("click", () => {
       saveLastInboxRead(newest);
+      STATE.inboxShowRead = false;
+      render();
+    });
+    panel.querySelector("#inbox-show-read-footer")?.addEventListener("click", () => {
+      STATE.inboxShowRead = true;
+      render();
+    });
+    panel.querySelector("#inbox-hide-read")?.addEventListener("click", () => {
+      STATE.inboxShowRead = false;
       render();
     });
     panel.querySelectorAll("[data-inboxentry]").forEach((row) => {

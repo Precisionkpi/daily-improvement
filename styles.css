@@ -2087,6 +2087,12 @@ select {
   color: var(--fg-muted);
 }
 .inbox-digest-bullets li { margin-bottom: 2px; line-height: 1.35; }
+.inbox-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  text-align: center;
+}
 
 @media (max-width: 420px) {
   .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
