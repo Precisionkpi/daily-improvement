@@ -1967,22 +1967,24 @@
       }
       ranks.push(currentRank);
     }
+    // Medal per rank — everyone who shares a podium rank gets the same medal.
+    const medalFor = (r) => r === 1 ? "🏆" : r === 2 ? "🥈" : r === 3 ? "🥉" : "";
     const peopleBody = peopleRows.length === 0
       ? `<div class="score-empty">No one's improved anything ${range === 'week' ? 'this week' : 'yet'}.</div>`
       : peopleRows.map(([who, n], i) => {
           const rank = ranks[i];
-          const isTopRank = rank === 1;
-          const top = isTopRank ? " is-top" : "";
-          const trophy = isTopRank ? ` <span class="trophy">🏆</span>` : "";
-          // Show "T1" style prefix when this person shares their rank with
-          // someone else — makes ties visually obvious instead of implying
-          // one person is above another when they're not.
+          const medal = medalFor(rank);
+          const top = rank === 1 ? " is-top" : "";
+          const medalHtml = medal ? ` <span class="trophy">${medal}</span>` : "";
+          // Show "T1" / "T2" style prefix when this person shares their rank
+          // with someone else — makes ties visually obvious instead of
+          // implying one person is above another when they're not.
           const tied = ranks.filter((r) => r === rank).length > 1;
           const rankLabel = tied ? `T${rank}` : String(rank);
           const pct = Math.round((n / maxPeople) * 100);
           return `<div class="scoreboard-row${top}">
             <span class="scoreboard-rank">${rankLabel}</span>
-            <span class="scoreboard-name">${esc(who)}${trophy}</span>
+            <span class="scoreboard-name">${esc(who)}${medalHtml}</span>
             <span class="scoreboard-bar"><span class="scoreboard-bar-fill" style="width:${pct}%"></span></span>
             <span class="scoreboard-num">${n}</span>
           </div>`;
