@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const force = Boolean(body?.force);
+    const weekOffset = Number(body?.week_offset ?? 0); // 0 = current, -1 = last week
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) return json({ error: "ANTHROPIC_API_KEY not set" }, 500);
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { weekStart, weekEnd, weekKey } = currentWeekBounds();
+    const { weekStart, weekEnd, weekKey } = weekBounds(weekOffset);
 
     // Return cached digest if present and not forced.
     if (!force) {
@@ -125,12 +126,12 @@ Respond with ONLY JSON, no markdown, matching:
   }
 });
 
-function currentWeekBounds() {
+function weekBounds(offset: number) {
   const now = new Date();
   // Monday-start week; adjust day-of-week so Monday=0, Sunday=6
   const day = (now.getDay() + 6) % 7;
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - day);
+  weekStart.setDate(now.getDate() - day + (offset * 7));
   weekStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);

@@ -1021,13 +1021,25 @@
 
   // Kick off fetches for weekly + monthly if they aren't loaded yet.
   // Idempotent: once a promise is in flight we don't start another one.
+  // For the weekly digest, if THIS week has no entries yet, we fall back
+  // to last week's digest so the inbox still has something to show in the
+  // first day or two of a new week.
   function ensureDigestsLoaded() {
     if (!STATE.insights.weekly && !STATE.insights._weeklyFetching) {
       STATE.insights._weeklyFetching = true;
       fnCall(FN.weekly, {}).then((out) => {
-        STATE.insights.weekly = out;
-        STATE.insights._weeklyFetching = false;
-        render();
+        if (out && (out.entry_count ?? 0) > 0) {
+          STATE.insights.weekly = out;
+          STATE.insights._weeklyFetching = false;
+          render();
+        } else {
+          // Current week empty — show last week's digest instead.
+          return fnCall(FN.weekly, { week_offset: -1 }).then((prev) => {
+            STATE.insights.weekly = prev;
+            STATE.insights._weeklyFetching = false;
+            render();
+          });
+        }
       }).catch(() => { STATE.insights._weeklyFetching = false; });
     }
     if (!STATE.insights.monthly && !STATE.insights._monthlyFetching) {
