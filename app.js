@@ -1579,14 +1579,12 @@
     panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
       row.addEventListener("click", () => {
         const itemId = row.dataset.inboxitemid;
+        const kind = row.dataset.inboxdigest;
+        const wasAlreadyRead = !row.classList.contains("is-unread");
         markInboxItemRead(itemId);
-        STATE.activeTab = "assignments";
-        syncTabUI();
-        render();
-        requestAnimationFrame(() => {
-          const target = document.querySelector(".insights");
-          if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
-        });
+        paintInboxBadge();
+        // Open the full digest in a modal so the user stays in the inbox.
+        openDigestDetail(kind, itemId, STATE.inboxShowRead === true || wasAlreadyRead);
       });
     });
   }
@@ -3239,6 +3237,89 @@
       body.innerHTML = renderEntry(fresh);
       wireEntryActions(body);
     };
+  }
+
+  // Open the weekly or monthly digest in a modal — same shell as entry
+  // detail, but renders the digest body (summary + bullets + impact card)
+  // instead of a submission.
+  function openDigestDetail(kind, fromInboxItemId, useMoveBackLabel) {
+    const digest = kind === "month" ? STATE.insights.monthly : STATE.insights.weekly;
+    if (!digest) return;
+    const lang = STATE.lang || "en";
+    const dL = digest[lang] || digest;
+
+    const keepLabel = useMoveBackLabel ? t("inboxMoveBack") : t("inboxKeep");
+    const keepBtn = fromInboxItemId
+      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="${esc(keepLabel)}">${esc(keepLabel)}</button>`
+      : "";
+
+    const title = kind === "month"
+      ? `${t("insightsMonth")} ${digest.month || ""}`
+      : t("insightsWeek");
+    const summary = kind === "month" ? (dL.exec_summary || "") : (dL.summary || "");
+
+    let body = `<div class="digest-detail">`;
+    body += `<h2 class="digest-detail-title">${esc(title)}</h2>`;
+    if (summary) body += `<div class="digest-detail-summary">${esc(summary)}</div>`;
+
+    if (kind !== "month") {
+      const hours = Number(digest?.impact_hours_estimate || 0);
+      if (hours > 0) {
+        const basis = digest?.impact_basis ? `<div class="impact-basis"><span class="impact-basis-label">${esc(t("impactBasisLabel"))}:</span> ${esc(digest.impact_basis)}</div>` : "";
+        body += `<div class="impact-card">
+          <div class="impact-head">${esc(t("impactTitle"))}</div>
+          <div class="impact-num">${hours}<span class="impact-unit">${esc(t("impactHours"))}</span></div>
+          ${basis}
+        </div>`;
+      }
+      if (dL.wins && dL.wins.length) {
+        body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsWins"))}</div><ul>${dL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      }
+      if (dL.open && dL.open.length) {
+        body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsOpen"))}</div><ul>${dL.open.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      }
+      if (dL.patterns && dL.patterns.length) {
+        body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsPatterns"))}</div><ul>${dL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+      }
+    } else {
+      if (dL.improvements && dL.improvements.length) {
+        body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsImprovements"))}</div><ul>${dL.improvements.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.detail)}</li>`).join("")}</ul></div>`;
+      }
+      if (dL.themes && dL.themes.length) {
+        body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${dL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
+      }
+    }
+    body += `</div>`;
+
+    const el = document.createElement("div");
+    el.className = "modal-backdrop entry-detail-backdrop";
+    el.innerHTML = `
+      <div class="modal entry-detail-modal" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+        <div class="entry-detail-head">
+          <button type="button" class="entry-detail-close" aria-label="${esc(t("inboxBack"))}">${esc(t("inboxBack"))}</button>
+          ${keepBtn}
+        </div>
+        <div class="entry-detail-body">${body}</div>
+      </div>`;
+    document.body.appendChild(el);
+
+    const close = () => {
+      el.remove();
+      document.removeEventListener("keydown", onKey);
+      render();
+    };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    el.querySelector(".entry-detail-close").addEventListener("click", close);
+    el.addEventListener("click", (e) => { if (e.target === el) close(); });
+
+    const keepButton = el.querySelector(".entry-detail-keep");
+    if (keepButton) {
+      keepButton.addEventListener("click", () => {
+        keepInboxItemUnread(keepButton.dataset.keepid);
+        close();
+      });
+    }
   }
 
   function openLightbox(src) {
