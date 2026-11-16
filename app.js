@@ -1945,8 +1945,17 @@
       byCat.set(c, (byCat.get(c) || 0) + 1);
     }
 
-    const peopleRows = Array.from(byPerson.entries()).sort((a, b) => b[1] - a[1]);
-    const catRows = Array.from(byCat.entries()).sort((a, b) => b[1] - a[1]);
+    // Sort by improvement count desc; tied counts are broken alphabetically
+    // by name so the order is predictable and fair, not "whoever Supabase
+    // handed us first."
+    const peopleRows = Array.from(byPerson.entries()).sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    });
+    const catRows = Array.from(byCat.entries()).sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    });
     const maxPeople = peopleRows.length ? peopleRows[0][1] : 1;
     const maxCat = catRows.length ? catRows[0][1] : 1;
 
