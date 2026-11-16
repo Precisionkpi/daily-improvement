@@ -1543,11 +1543,17 @@
         const entryId = row.dataset.inboxentry;
         const itemId = row.dataset.inboxitemid;
         const wasAlreadyRead = !row.classList.contains("is-unread");
-        // Mark ONLY this specific item as read (the "Keep / Move back"
-        // button inside the modal can undo this if the user hits it).
+        // In the "All" tab the natural phrasing is always "Move back to
+        // inbox" — the user is browsing a mix of read + unread rows, and
+        // the distinction between "keep" vs "move back" is noise there.
+        // In the "Unread" tab, show "Keep" on first read and "Move back"
+        // on a re-open.
+        const useMoveBackLabel = STATE.inboxShowRead === true || wasAlreadyRead;
+        // Mark ONLY this specific item as read (the button inside the
+        // modal can undo this if the user hits it).
         markInboxItemRead(itemId);
         paintInboxBadge();
-        openEntryDetail(entryId, itemId, wasAlreadyRead);
+        openEntryDetail(entryId, itemId, useMoveBackLabel);
       });
     });
     panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
