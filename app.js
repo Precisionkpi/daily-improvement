@@ -1019,6 +1019,27 @@
   // current user is the submitter or an assignee. "Unread" = created after the
   // user's last-read timestamp (per-device, in localStorage).
 
+  // Kick off fetches for weekly + monthly if they aren't loaded yet.
+  // Idempotent: once a promise is in flight we don't start another one.
+  function ensureDigestsLoaded() {
+    if (!STATE.insights.weekly && !STATE.insights._weeklyFetching) {
+      STATE.insights._weeklyFetching = true;
+      fnCall(FN.weekly, {}).then((out) => {
+        STATE.insights.weekly = out;
+        STATE.insights._weeklyFetching = false;
+        render();
+      }).catch(() => { STATE.insights._weeklyFetching = false; });
+    }
+    if (!STATE.insights.monthly && !STATE.insights._monthlyFetching) {
+      STATE.insights._monthlyFetching = true;
+      fnCall(FN.monthly, { month_offset: -1 }).then((out) => {
+        STATE.insights.monthly = out;
+        STATE.insights._monthlyFetching = false;
+        render();
+      }).catch(() => { STATE.insights._monthlyFetching = false; });
+    }
+  }
+
   function readLastInboxRead() {
     try {
       const v = localStorage.getItem("don:inboxRead:" + STATE.name);
@@ -1146,6 +1167,10 @@
       return;
     }
     if (STATE.loading) { panel.innerHTML = `<div class="loading">Loading…</div>`; return; }
+
+    // Make sure the weekly digest + monthly report are loaded before we render;
+    // otherwise the digest card won't show until the background prefetch lands.
+    ensureDigestsLoaded();
 
     const items = collectInboxItems();
     const cutoff = readLastInboxRead();
