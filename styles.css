@@ -2093,6 +2093,48 @@ select {
   border-top: 1px dashed var(--border);
   text-align: center;
 }
+.inbox-item-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.inbox-moveback {
+  align-self: flex-end;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: transparent;
+  user-select: none;
+}
+.inbox-moveback:hover { background: var(--primary-tint); }
+.entry-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.entry-detail-keep {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 7px 12px;
+  border-radius: 100px;
+  min-height: 36px;
+  white-space: nowrap;
+}
+.entry-detail-keep:hover {
+  background: var(--primary-tint);
+  color: var(--primary);
+  border-color: var(--primary);
+}
 
 /* ---- Entry detail modal (opened from Inbox) ---- */
 /* On mobile the modal is full-bleed: no backdrop padding, modal fills the

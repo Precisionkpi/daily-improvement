@@ -1088,8 +1088,38 @@
     const set = readInboxReadIds();
     set.add(id);
     saveInboxReadIds(set);
+    // Also drop it from the force-unread set (if the user had moved it back)
+    const forced = readInboxForceUnreadIds();
+    if (forced.delete(id)) saveInboxForceUnreadIds(forced);
   }
-  function isInboxItemUnread(item, cutoff, readIds) {
+
+  // "Keep in inbox" — force an item to show as unread even if it's
+  // older than the mark-all-read cutoff or was marked read by a tap.
+  function readInboxForceUnreadIds() {
+    try {
+      const v = localStorage.getItem("don:inboxForceUnread:" + STATE.name);
+      if (!v) return new Set();
+      return new Set(JSON.parse(v));
+    } catch { return new Set(); }
+  }
+  function saveInboxForceUnreadIds(set) {
+    try {
+      const arr = Array.from(set).slice(-500);
+      localStorage.setItem("don:inboxForceUnread:" + STATE.name, JSON.stringify(arr));
+    } catch {}
+  }
+  function keepInboxItemUnread(id) {
+    if (!id) return;
+    const forced = readInboxForceUnreadIds();
+    forced.add(id);
+    saveInboxForceUnreadIds(forced);
+    // Also remove it from the read set
+    const read = readInboxReadIds();
+    if (read.delete(id)) saveInboxReadIds(read);
+  }
+
+  function isInboxItemUnread(item, cutoff, readIds, forcedIds) {
+    if (forcedIds && forcedIds.has(item.id)) return true;
     if (readIds.has(item.id)) return false;
     return item.at > cutoff;
   }
@@ -1206,7 +1236,8 @@
     const items = collectInboxItems();
     const cutoff = readLastInboxRead();
     const readIds = readInboxReadIds();
-    return items.filter((it) => isInboxItemUnread(it, cutoff, readIds)).length;
+    const forcedIds = readInboxForceUnreadIds();
+    return items.filter((it) => isInboxItemUnread(it, cutoff, readIds, forcedIds)).length;
   }
 
   function paintInboxBadge() {
@@ -1236,10 +1267,11 @@
     const items = collectInboxItems();
     const cutoff = readLastInboxRead();
     const readIds = readInboxReadIds();
+    const forcedIds = readInboxForceUnreadIds();
 
     // Split into unread (the real inbox) and read (hidden under a toggle)
-    const unreadItems = items.filter((it) => isInboxItemUnread(it, cutoff, readIds));
-    const readItems = items.filter((it) => !isInboxItemUnread(it, cutoff, readIds));
+    const unreadItems = items.filter((it) => isInboxItemUnread(it, cutoff, readIds, forcedIds));
+    const readItems = items.filter((it) => !isInboxItemUnread(it, cutoff, readIds, forcedIds));
     const showingRead = STATE.inboxShowRead === true;
 
     if (items.length === 0) {
@@ -1298,7 +1330,7 @@
 
     for (const it of toRender) {
       const meta = KIND_META[it.kind] || KIND_META.comment;
-      const unread = isInboxItemUnread(it, cutoff, readIds);
+      const unread = isInboxItemUnread(it, cutoff, readIds, forcedIds);
 
       if (it.kind === "digest") {
         const kindLabel = it.digestKind === "month"
@@ -1343,18 +1375,24 @@
         contextText = esc(headline);
       }
 
-      html += `<button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}" data-inboxitemid="${esc(it.id)}">
-        <div class="inbox-item-icon">${meta.icon}</div>
-        <div class="inbox-item-body">
-          <div class="inbox-item-row">
-            <span class="inbox-item-kind">${meta.label}</span>
-            <span class="inbox-item-when">${timeAgo(it.at)}</span>
+      const backLink = !unread
+        ? `<span class="inbox-moveback" data-moveback="${esc(it.id)}" role="button" tabindex="0" title="Move back to inbox">↩ Move back</span>`
+        : "";
+      html += `<div class="inbox-item-wrap">
+        <button type="button" class="inbox-item${unread ? " is-unread" : ""}" data-inboxentry="${esc(it.entry.id)}" data-inboxitemid="${esc(it.id)}">
+          <div class="inbox-item-icon">${meta.icon}</div>
+          <div class="inbox-item-body">
+            <div class="inbox-item-row">
+              <span class="inbox-item-kind">${meta.label}</span>
+              <span class="inbox-item-when">${timeAgo(it.at)}</span>
+            </div>
+            <div class="inbox-item-text">${bodyText}</div>
+            <div class="inbox-item-context"><span class="inbox-item-role">${roleTag}</span>${contextText ? " · " + contextText : ""}</div>
           </div>
-          <div class="inbox-item-text">${bodyText}</div>
-          <div class="inbox-item-context"><span class="inbox-item-role">${roleTag}</span>${contextText ? " · " + contextText : ""}</div>
-        </div>
-        ${unread ? '<div class="inbox-dot" aria-label="unread"></div>' : ''}
-      </button>`;
+          ${unread ? '<div class="inbox-dot" aria-label="unread"></div>' : ''}
+        </button>
+        ${backLink}
+      </div>`;
     }
 
     html += `</div>`;
@@ -1371,6 +1409,14 @@
       STATE.inboxShowRead = false;
       render();
     });
+    panel.querySelectorAll("[data-moveback]").forEach((link) => {
+      link.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        keepInboxItemUnread(link.dataset.moveback);
+        render();
+      });
+    });
     panel.querySelector("#inbox-show-read-footer")?.addEventListener("click", () => {
       STATE.inboxShowRead = true;
       render();
@@ -1386,7 +1432,7 @@
         // Mark ONLY this specific item as read.
         markInboxItemRead(itemId);
         paintInboxBadge();
-        openEntryDetail(entryId);
+        openEntryDetail(entryId, itemId);
       });
     });
     panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
@@ -2961,12 +3007,19 @@
   // Opens an entry in a modal overlay — used from the Inbox so tapping an
   // item doesn't throw you out of the inbox entirely. All entry controls
   // (comments, reactions, checklist, assign, complete) work inside the modal.
-  function openEntryDetail(entryId) {
+  // `fromInboxItemId` (optional) lets us offer a "Keep in inbox" action when
+  // the modal was opened by tapping an inbox row, so the user can push the
+  // item back to unread if they can't deal with it yet.
+  function openEntryDetail(entryId, fromInboxItemId) {
     const entry = STATE.submissions.find((s) => s.id === entryId);
     if (!entry) return;
     // Force the comments section open on this view so the composer is right there
     const prevThread = STATE.openCommentThread;
     STATE.openCommentThread = entryId;
+
+    const keepBtn = fromInboxItemId
+      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="Push this back to the inbox as unread">↩ Keep in inbox</button>`
+      : "";
 
     const el = document.createElement("div");
     el.className = "modal-backdrop entry-detail-backdrop";
@@ -2974,6 +3027,7 @@
       <div class="modal entry-detail-modal" role="dialog" aria-modal="true" aria-label="Entry">
         <div class="entry-detail-head">
           <button type="button" class="entry-detail-close" aria-label="Back to inbox">← Back to inbox</button>
+          ${keepBtn}
         </div>
         <div class="entry-detail-body">${renderEntry(entry)}</div>
       </div>`;
@@ -2991,6 +3045,14 @@
     document.addEventListener("keydown", onKey);
     el.querySelector(".entry-detail-close").addEventListener("click", close);
     el.addEventListener("click", (e) => { if (e.target === el) close(); });
+
+    const keepButton = el.querySelector(".entry-detail-keep");
+    if (keepButton) {
+      keepButton.addEventListener("click", () => {
+        keepInboxItemUnread(keepButton.dataset.keepid);
+        close();
+      });
+    }
 
     // Wire all entry actions and the comment composer inside the modal body
     const body = el.querySelector(".entry-detail-body");
