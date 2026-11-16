@@ -1723,7 +1723,6 @@
       // "digest:week:..." synthetic id, so a 🔥 here shows up there too.
       const weekDigestId = `digest:week:${(w.week_start || "").slice(0, 10)}`;
       out += renderReactionRow(weekDigestId);
-      // Comments live at the bottom of the digest card below.
       if (wL.wins && wL.wins.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsWins"))}</div><ul>${wL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
@@ -1734,7 +1733,6 @@
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsPatterns"))}</div><ul>${wL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
       // Comment thread for the whole crew to chime in on the digest.
-      const weekDigestId = `digest:week:${(w.week_start || "").slice(0, 10)}`;
       out += renderCommentsBlock(weekDigestId);
     }
     out += `</div>`;
