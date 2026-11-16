@@ -1444,11 +1444,19 @@
     const refresh = panel.querySelector("#insights-refresh");
     const generate = panel.querySelector("#insights-generate");
     const monthRefresh = panel.querySelector("#insights-month-refresh");
+    // Shared fetcher: try current week; if it has no entries, fall back to
+    // last week's digest so the panel (and inbox) always have something real.
     const load = async (force = false) => {
       STATE.insights.loading = true;
       render();
       try {
-        STATE.insights.weekly = await fnCall(FN.weekly, { force });
+        const cur = await fnCall(FN.weekly, { force });
+        if (cur && (cur.entry_count ?? 0) > 0) {
+          STATE.insights.weekly = cur;
+        } else {
+          const prev = await fnCall(FN.weekly, { week_offset: -1, force });
+          STATE.insights.weekly = prev || cur;
+        }
       } catch (err) {
         console.warn("weekly digest failed", err);
       } finally {
