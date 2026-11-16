@@ -1701,8 +1701,7 @@
 
     let out = `<div class="insights">
       <div class="insights-head">
-        <span class="insights-title">${esc(t("insightsWeek"))}</span>
-        <button type="button" class="link-btn" id="insights-refresh">${loading ? "…" : esc(t("insightsRefresh"))}</button>
+        <span class="insights-title">${esc(t("insightsWeek"))}${loading ? " <span class=\"insights-loading-dot\">…</span>" : ""}</span>
       </div>`;
     if (!w && !loading) {
       out += `<div class="insights-empty"><button type="button" class="btn btn-ghost" id="insights-generate">${esc(t("insightsGenerate"))}</button></div>`;
@@ -1742,7 +1741,6 @@
       out += `<div class="insights insights-month">
         <div class="insights-head">
           <span class="insights-title">${esc(t("insightsMonth"))} ${esc(m.month)}</span>
-          <button type="button" class="link-btn" id="insights-month-refresh">${esc(t("insightsRefresh"))}</button>
         </div>
         <div class="insights-summary">${esc(mL.exec_summary)}</div>`;
       if (mL.improvements && mL.improvements.length) {
