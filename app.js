@@ -575,6 +575,11 @@
     else renderEveryone();
     if (draft) restoreCommentDraft(draft);
     paintInboxBadge();
+    // If a detail modal is open, refresh its body so a new comment / reaction
+    // / status change shows up without the user closing + reopening it.
+    if (typeof STATE._detailModalRerender === "function") {
+      STATE._detailModalRerender();
+    }
   }
 
   function captureCommentDraft() {
@@ -1348,18 +1353,11 @@
     panel.querySelectorAll("[data-inboxentry]").forEach((row) => {
       row.addEventListener("click", () => {
         const entryId = row.dataset.inboxentry;
-        // Mark all as read when you jump to an entry, then switch to Feed and
-        // open that entry's comments.
+        // Open the entry in a modal overlay instead of leaving the inbox.
+        // Mark things read up to this item's timestamp so the badge clears.
         saveLastInboxRead(newest);
-        STATE.activeTab = "everyone";
-        STATE.filter = "all";
-        STATE.openCommentThread = entryId;
-        syncTabUI();
-        render();
-        requestAnimationFrame(() => {
-          const target = document.getElementById(`entry-${entryId}`);
-          if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
-        });
+        paintInboxBadge();
+        openEntryDetail(entryId);
       });
     });
     panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
@@ -2928,6 +2926,54 @@
       backdrop.querySelector("#c-ok").addEventListener("click", () => done(true));
       backdrop.addEventListener("click", (e) => { if (e.target === backdrop) done(false); });
     });
+  }
+
+  // Opens an entry in a modal overlay — used from the Inbox so tapping an
+  // item doesn't throw you out of the inbox entirely. All entry controls
+  // (comments, reactions, checklist, assign, complete) work inside the modal.
+  function openEntryDetail(entryId) {
+    const entry = STATE.submissions.find((s) => s.id === entryId);
+    if (!entry) return;
+    // Force the comments section open on this view so the composer is right there
+    const prevThread = STATE.openCommentThread;
+    STATE.openCommentThread = entryId;
+
+    const el = document.createElement("div");
+    el.className = "modal-backdrop entry-detail-backdrop";
+    el.innerHTML = `
+      <div class="modal entry-detail-modal" role="dialog" aria-modal="true" aria-label="Entry">
+        <div class="entry-detail-head">
+          <button type="button" class="entry-detail-close" aria-label="Back to inbox">← Back to inbox</button>
+        </div>
+        <div class="entry-detail-body">${renderEntry(entry)}</div>
+      </div>`;
+    document.body.appendChild(el);
+
+    const close = () => {
+      STATE.openCommentThread = prevThread;
+      STATE._detailModalRerender = null;
+      el.remove();
+      document.removeEventListener("keydown", onKey);
+      // Re-render inbox so any state changes (new comments, reactions) reflect
+      render();
+    };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    el.querySelector(".entry-detail-close").addEventListener("click", close);
+    el.addEventListener("click", (e) => { if (e.target === el) close(); });
+
+    // Wire all entry actions and the comment composer inside the modal body
+    const body = el.querySelector(".entry-detail-body");
+    wireEntryActions(body);
+
+    // Realtime updates: when something lands for this entry, re-render the
+    // modal body in place (comments, reactions, checklist).
+    STATE._detailModalRerender = () => {
+      const fresh = STATE.submissions.find((s) => s.id === entryId);
+      if (!fresh) { close(); return; }
+      body.innerHTML = renderEntry(fresh);
+      wireEntryActions(body);
+    };
   }
 
   function openLightbox(src) {

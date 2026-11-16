@@ -2094,6 +2094,50 @@ select {
   text-align: center;
 }
 
+/* ---- Entry detail modal (opened from Inbox) ---- */
+.entry-detail-backdrop { align-items: flex-start; padding-top: 0; }
+@media (min-width: 480px) { .entry-detail-backdrop { align-items: flex-start; padding-top: 24px; } }
+.entry-detail-modal {
+  max-width: 640px;
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.22s ease-out;
+}
+.entry-detail-head {
+  padding: 10px 14px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.entry-detail-close {
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 6px 4px;
+}
+.entry-detail-close:hover { color: var(--primary-hover); }
+.entry-detail-body {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+.entry-detail-body .entry {
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
 @media (max-width: 420px) {
   .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .tab { white-space: nowrap; flex-shrink: 0; font-size: 0.78rem; padding: 7px 10px; }
