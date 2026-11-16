@@ -362,6 +362,9 @@
       insightsImprovements: "Improvements shipped", insightsThemes: "Themes",
       insightsGenerate: "Generate weekly digest",
       insightsLoading: "Claude is reading this week's entries…",
+      impactTitle: "⏱ Crew time recovered",
+      impactHours: "hours this week",
+      impactBasisLabel: "Based on",
       welcomePrompt: "Who's logging in?",
       welcomeSub: "Pick your name to get started.",
       welcomeFooter: "One improvement a day — the climb never ends.",
@@ -369,6 +372,13 @@
       workloadOpen: "open",
       sectionInProgress: "In progress",
       noInstructions: "No instructions yet.",
+      agingTitle: "⏰ Open issues aging",
+      agingSub: "Open 2+ weeks — worth a nudge",
+      agingNone: "Nothing's been sitting too long. Nice.",
+      agingDays: "days open",
+      agingAnd: "and",
+      agingMore: "more",
+      agingUnassigned: "Unassigned",
     },
     es: {
       tabSubmit: "Enviar", tabMine: "Míos", tabInbox: "Buzón",
@@ -404,6 +414,9 @@
       insightsImprovements: "Mejoras logradas", insightsThemes: "Temas",
       insightsGenerate: "Generar resumen semanal",
       insightsLoading: "Claude está leyendo las entradas de esta semana…",
+      impactTitle: "⏱ Tiempo recuperado del equipo",
+      impactHours: "horas esta semana",
+      impactBasisLabel: "Basado en",
       welcomePrompt: "¿Quién está iniciando sesión?",
       welcomeSub: "Elige tu nombre para empezar.",
       welcomeFooter: "Una mejora al día — el ascenso no termina.",
@@ -411,6 +424,13 @@
       workloadOpen: "abiertos",
       sectionInProgress: "En progreso",
       noInstructions: "Sin instrucciones todavía.",
+      agingTitle: "⏰ Pendientes antiguos",
+      agingSub: "Abiertos 2+ semanas — vale la pena recordar",
+      agingNone: "Nada lleva demasiado tiempo. Bien.",
+      agingDays: "días abierto",
+      agingAnd: "y",
+      agingMore: "más",
+      agingUnassigned: "Sin asignar",
     },
   };
   function t(key) {
@@ -1610,6 +1630,10 @@
     // AI Insights — weekly digest + last month's report.
     body += renderInsights();
 
+    // Open issues aging — catches entries sitting 2+ weeks, incl. unassigned
+    // ones that stale-nudge can't reach.
+    body += renderAgingIssues();
+
     // Per-person workload summary — each person's open-assignment count
     if (assigned.length > 0) {
       const counts = new Map();
@@ -1653,6 +1677,7 @@
     wireEntryActions(panel);
     wireScoreboard(panel);
     wireInsights(panel);
+    wireAging(panel);
     panel.querySelectorAll("[data-workloadperson]").forEach((row) => {
       row.addEventListener("click", () => {
         STATE.activeTab = "everyone";
@@ -1687,6 +1712,15 @@
       out += `<div class="insights-empty">${esc(t("insightsLoading"))}</div>`;
     } else if (wL) {
       out += `<div class="insights-summary">${esc(wL.summary || "")}</div>`;
+      const hours = Number(w?.impact_hours_estimate || 0);
+      if (hours > 0) {
+        const basis = w?.impact_basis ? `<div class="impact-basis"><span class="impact-basis-label">${esc(t("impactBasisLabel"))}:</span> ${esc(w.impact_basis)}</div>` : "";
+        out += `<div class="impact-card">
+          <div class="impact-head">${esc(t("impactTitle"))}</div>
+          <div class="impact-num">${hours}<span class="impact-unit">${esc(t("impactHours"))}</span></div>
+          ${basis}
+        </div>`;
+      }
       if (wL.wins && wL.wins.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsWins"))}</div><ul>${wL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
@@ -1715,6 +1749,59 @@
       out += `</div>`;
     }
     return out;
+  }
+
+  // "Open issues by age" — shows entries 2+ weeks old that are still open or
+  // in progress, including unassigned ones (which stale-nudge can't reach).
+  function renderAgingIssues() {
+    const now = Date.now();
+    const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+    const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+    const aging = STATE.submissions
+      .filter((s) => s.status !== "improved")
+      .map((s) => ({ s, age: s.createdAt ? now - new Date(s.createdAt).getTime() : 0 }))
+      .filter((x) => x.age >= twoWeeksMs)
+      .sort((a, b) => b.age - a.age);
+
+    const title = `<div class="aging-head">
+      <span class="aging-title">${esc(t("agingTitle"))} <span class="aging-count">${aging.length}</span></span>
+      <span class="aging-sub">${esc(t("agingSub"))}</span>
+    </div>`;
+
+    if (aging.length === 0) {
+      return `<div class="aging">${title}<div class="aging-empty">${esc(t("agingNone"))}</div></div>`;
+    }
+
+    const topN = aging.slice(0, 5);
+    const overflow = aging.length - topN.length;
+    const rows = topN.map(({ s, age }) => {
+      const days = Math.floor(age / (24 * 60 * 60 * 1000));
+      const headline = localized(s, "headline") || (localized(s, "problem") || "").slice(0, 80);
+      const assignees = getAssignees(s);
+      const who = assignees.length ? formatAssignees(assignees) : t("agingUnassigned");
+      const warn = age >= 4 * oneWeekMs ? " aging-row-danger" : "";
+      return `<button type="button" class="aging-row${warn}" data-agingentry="${esc(s.id)}">
+        <div class="aging-row-main">
+          <div class="aging-row-headline">${esc(headline)}</div>
+          <div class="aging-row-meta">${esc(who)}</div>
+        </div>
+        <div class="aging-row-age">${days} <span class="aging-row-days">${esc(t("agingDays"))}</span></div>
+      </button>`;
+    }).join("");
+
+    const more = overflow > 0
+      ? `<div class="aging-more">${esc(t("agingAnd"))} ${overflow} ${esc(t("agingMore"))}</div>`
+      : "";
+
+    return `<div class="aging">${title}<div class="aging-list">${rows}</div>${more}</div>`;
+  }
+
+  function wireAging(panel) {
+    panel.querySelectorAll("[data-agingentry]").forEach((row) => {
+      row.addEventListener("click", () => {
+        openEntryDetail(row.dataset.agingentry);
+      });
+    });
   }
 
   function wireInsights(panel) {

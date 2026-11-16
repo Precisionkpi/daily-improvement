@@ -77,6 +77,8 @@ ${JSON.stringify(list, null, 2)}
 Respond with ONLY JSON, no markdown, with BOTH English and Spanish versions of each section. Everything stays the same except the language — don't translate names of people, places, or equipment brands. Spanish should use natural, casual crew tone (Latin American Spanish).
 
 {
+  "impact_hours_estimate": 0,   // rough number of crew hours RECOVERED this week by the improved/completed entries — conservative. 0 if nothing shipped.
+  "impact_basis": "one short sentence (English) saying how you arrived at the estimate, e.g. 'Based on 3 completed entries: pallet mover saves ~2hr/day, Aspire plan ~30min/morning, water trailer ~45min/trip.'",
   "en": {
     "summary": "2-3 sentence plain-English recap for a Monday huddle. Direct, concrete, not corporate.",
     "wins": ["short bullet of a completed improvement", "..."],  // up to 4
@@ -91,7 +93,9 @@ Respond with ONLY JSON, no markdown, with BOTH English and Spanish versions of e
     "patterns": ["..."],
     "active_people": ["Nombre — N entradas", "..."]
   }
-}`;
+}
+
+For impact_hours_estimate, be realistic and conservative. Only count time actually saved by changes that SHIPPED this week (status "improved"). Don't count aspirational or still-in-progress work. If you can't tell from the entry details, leave it low or 0.`;
 
     const ar = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -131,10 +135,16 @@ Respond with ONLY JSON, no markdown, with BOTH English and Spanish versions of e
     });
     const en = cleanLang(parsed.en ?? parsed);  // fall back to flat shape if Claude forgot to nest
     const es = cleanLang(parsed.es);
+    const impactHours = Number.isFinite(Number(parsed.impact_hours_estimate))
+      ? Math.max(0, Number(parsed.impact_hours_estimate))
+      : 0;
+    const impactBasis = String(parsed.impact_basis ?? "").trim();
     const out = {
       // Default surface = English, with per-language sections
       ...en,
       en, es,
+      impact_hours_estimate: impactHours,
+      impact_basis: impactBasis,
       week_start: weekStart.toISOString(),
       week_end: weekEnd.toISOString(),
       entry_count: list.length,
