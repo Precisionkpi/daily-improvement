@@ -1727,10 +1727,12 @@
           ${basis}
         </div>`;
       }
-      // Reactions on the digest — shared with the modal view via the same
-      // "digest:week:..." synthetic id, so a 🔥 here shows up there too.
+      // Reactions + comments only when there's actually content to react to.
+      // No entries this period = nothing to celebrate; hide the UI so nobody
+      // reacts to a placeholder.
+      const hasContent = (w?.entry_count ?? 0) > 0;
       const weekDigestId = `digest:week:${(w.week_start || "").slice(0, 10)}`;
-      out += renderReactionRow(weekDigestId);
+      if (hasContent) out += renderReactionRow(weekDigestId);
       if (wL.wins && wL.wins.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsWins"))}</div><ul>${wL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
@@ -1741,12 +1743,13 @@
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsPatterns"))}</div><ul>${wL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
       // Comment thread for the whole crew to chime in on the digest.
-      out += renderCommentsBlock(weekDigestId);
+      if (hasContent) out += renderCommentsBlock(weekDigestId);
     }
     out += `</div>`;
 
     if (m && mL && mL.exec_summary) {
       const monthDigestId = `digest:month:${(m.month_start || "").slice(0, 7)}`;
+      const monthHasContent = (m?.entry_count ?? 0) > 0;
       out += `<div class="insights insights-month">
         <div class="insights-head">
           <span class="insights-title">${esc(t("insightsMonth"))} ${esc(m.month)}</span>
@@ -1758,8 +1761,10 @@
       if (mL.themes && mL.themes.length) {
         out += `<div class="insights-block"><div class="insights-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${mL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
       }
-      out += renderReactionRow(monthDigestId);
-      out += renderCommentsBlock(monthDigestId);
+      if (monthHasContent) {
+        out += renderReactionRow(monthDigestId);
+        out += renderCommentsBlock(monthDigestId);
+      }
       out += `</div>`;
     }
     return out;
@@ -3320,8 +3325,9 @@
       }
       // Reactions sit right under the impact card so they read as "👏 on
       // the hours recovered" visually, even though they attach to the whole
-      // digest under the hood.
-      body += renderReactionRow(digestId);
+      // digest under the hood. Hidden when there are no entries to react to.
+      const dHasContent = (digest?.entry_count ?? 0) > 0;
+      if (dHasContent) body += renderReactionRow(digestId);
       if (dL.wins && dL.wins.length) {
         body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsWins"))}</div><ul>${dL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
@@ -3339,13 +3345,14 @@
         body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${dL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
       }
       // Monthly report has no impact card, so reactions go at the end.
-      body += renderReactionRow(digestId);
+      if ((digest?.entry_count ?? 0) > 0) body += renderReactionRow(digestId);
     }
 
-    // Comments go at the bottom regardless.
+    // Comments go at the bottom regardless — but only when there's content
+    // to discuss. No reactions/comments on empty-period digests.
     const prevThread = STATE.openCommentThread;
     STATE.openCommentThread = digestId;
-    body += renderCommentsBlock(digestId);
+    if ((digest?.entry_count ?? 0) > 0) body += renderCommentsBlock(digestId);
     body += `</div>`;
 
     const el = document.createElement("div");
@@ -3401,16 +3408,16 @@
             ${basis}
           </div>`;
         }
-        fresh += renderReactionRow(digestId);
+        if ((digest?.entry_count ?? 0) > 0) fresh += renderReactionRow(digestId);
         if (dL.wins && dL.wins.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsWins"))}</div><ul>${dL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
         if (dL.open && dL.open.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsOpen"))}</div><ul>${dL.open.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
         if (dL.patterns && dL.patterns.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsPatterns"))}</div><ul>${dL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       } else {
         if (dL.improvements && dL.improvements.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsImprovements"))}</div><ul>${dL.improvements.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.detail)}</li>`).join("")}</ul></div>`;
         if (dL.themes && dL.themes.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${dL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
-        fresh += renderReactionRow(digestId);
+        if ((digest?.entry_count ?? 0) > 0) fresh += renderReactionRow(digestId);
       }
-      fresh += renderCommentsBlock(digestId);
+      if ((digest?.entry_count ?? 0) > 0) fresh += renderCommentsBlock(digestId);
       fresh += `</div>`;
       modalBody.innerHTML = fresh;
       wireEntryActions(modalBody);
