@@ -337,6 +337,7 @@
       inboxFor: "Inbox for",
       inboxBack: "← Back to inbox",
       inboxMoveBack: "↩ Move back to inbox",
+      inboxKeep: "↩ Keep in inbox",
       inboxEmpty: "Nothing in your inbox",
       inboxEmptyDesc: "You'll see comments, Claude's check-ins, and new entries from the crew here.",
       inboxEmptyUnread: "You're caught up ✨",
@@ -378,6 +379,7 @@
       inboxFor: "Buzón de",
       inboxBack: "← Volver al buzón",
       inboxMoveBack: "↩ Volver al buzón",
+      inboxKeep: "↩ Mantener en buzón",
       inboxEmpty: "Nada en tu buzón",
       inboxEmptyDesc: "Aquí verás comentarios, mensajes de Claude y entradas nuevas del equipo.",
       inboxEmptyUnread: "Estás al día ✨",
@@ -1541,12 +1543,11 @@
         const entryId = row.dataset.inboxentry;
         const itemId = row.dataset.inboxitemid;
         const wasAlreadyRead = !row.classList.contains("is-unread");
-        // Mark ONLY this specific item as read.
+        // Mark ONLY this specific item as read (the "Keep / Move back"
+        // button inside the modal can undo this if the user hits it).
         markInboxItemRead(itemId);
         paintInboxBadge();
-        // Only show "Move back to inbox" when the item was already read
-        // (tapped from the All tab) — on first read it's unnecessary noise.
-        openEntryDetail(entryId, wasAlreadyRead ? itemId : null);
+        openEntryDetail(entryId, itemId, wasAlreadyRead);
       });
     });
     panel.querySelectorAll("[data-inboxdigest]").forEach((row) => {
@@ -3084,18 +3085,20 @@
   // Opens an entry in a modal overlay — used from the Inbox so tapping an
   // item doesn't throw you out of the inbox entirely. All entry controls
   // (comments, reactions, checklist, assign, complete) work inside the modal.
-  // `fromInboxItemId` (optional) lets us offer a "Keep in inbox" action when
-  // the modal was opened by tapping an inbox row, so the user can push the
-  // item back to unread if they can't deal with it yet.
-  function openEntryDetail(entryId, fromInboxItemId) {
+  // `fromInboxItemId`: if provided, show the push-back-to-unread button.
+  // `wasAlreadyRead`: when true, label it "Move back to inbox" (was read
+  // before this tap). Otherwise "Keep in inbox" (user is reading for the
+  // first time, both mean "make/leave this unread").
+  function openEntryDetail(entryId, fromInboxItemId, wasAlreadyRead) {
     const entry = STATE.submissions.find((s) => s.id === entryId);
     if (!entry) return;
     // Force the comments section open on this view so the composer is right there
     const prevThread = STATE.openCommentThread;
     STATE.openCommentThread = entryId;
 
+    const keepLabel = wasAlreadyRead ? t("inboxMoveBack") : t("inboxKeep");
     const keepBtn = fromInboxItemId
-      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="${esc(t("inboxMoveBack"))}">${esc(t("inboxMoveBack"))}</button>`
+      ? `<button type="button" class="entry-detail-keep" data-keepid="${esc(fromInboxItemId)}" title="${esc(keepLabel)}">${esc(keepLabel)}</button>`
       : "";
 
     const el = document.createElement("div");
