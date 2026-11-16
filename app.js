@@ -1516,6 +1516,16 @@
         contextText = esc(headline);
       }
 
+      // Status chip for the entry — shows whether the problem is still in
+      // progress or already solved so each inbox row carries that context.
+      const entryStatus = it.entry.status || "assigned";
+      const isImpactKind = it.entry.kind === "impact";
+      const statusLabel = entryStatus === "improved"
+        ? (isImpactKind ? "Completed" : "Solved")
+        : "In progress";
+      const statusCls = entryStatus === "improved" ? "status-improved" : "status-progress";
+      const statusChip = `<span class="inbox-item-status ${statusCls}">${esc(statusLabel)}</span>`;
+
       const backLink = !unread
         ? `<span class="inbox-moveback" data-moveback="${esc(it.id)}" role="button" tabindex="0" title="${esc(t("inboxMoveBack"))}">${esc(t("inboxMoveBack"))}</span>`
         : "";
@@ -1525,6 +1535,7 @@
           <div class="inbox-item-body">
             <div class="inbox-item-row">
               <span class="inbox-item-kind">${meta.label}</span>
+              ${statusChip}
               <span class="inbox-item-when">${timeAgo(it.at)}</span>
             </div>
             <div class="inbox-item-text">${bodyText}</div>

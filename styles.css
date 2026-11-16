@@ -2027,7 +2027,22 @@ select {
   font-size: 0.74rem;
   color: var(--fg-faint);
   flex-shrink: 0;
+  margin-left: auto;
 }
+.inbox-item-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 100px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.inbox-item-status.status-progress { background: var(--progress-bg); color: var(--progress); }
+.inbox-item-status.status-improved { background: var(--improved-bg); color: var(--improved); }
 .inbox-item-text {
   font-size: 0.9rem;
   color: var(--fg);
