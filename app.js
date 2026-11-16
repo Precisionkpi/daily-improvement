@@ -1956,14 +1956,32 @@
         <button data-range="all" aria-pressed="${range === 'all'}">All time</button>
       </div>`;
 
+    // Standard "competition" ranking with ties: if three people share 1st
+    // place they are all rank 1, and the next person is rank 4. The trophy
+    // goes to everyone tied at 1st.
+    const ranks = [];
+    let currentRank = 1;
+    for (let i = 0; i < peopleRows.length; i++) {
+      if (i === 0 || peopleRows[i][1] !== peopleRows[i - 1][1]) {
+        currentRank = i + 1;
+      }
+      ranks.push(currentRank);
+    }
     const peopleBody = peopleRows.length === 0
       ? `<div class="score-empty">No one's improved anything ${range === 'week' ? 'this week' : 'yet'}.</div>`
       : peopleRows.map(([who, n], i) => {
-          const top = i === 0 ? " is-top" : "";
-          const trophy = i === 0 ? ` <span class="trophy">🏆</span>` : "";
+          const rank = ranks[i];
+          const isTopRank = rank === 1;
+          const top = isTopRank ? " is-top" : "";
+          const trophy = isTopRank ? ` <span class="trophy">🏆</span>` : "";
+          // Show "T1" style prefix when this person shares their rank with
+          // someone else — makes ties visually obvious instead of implying
+          // one person is above another when they're not.
+          const tied = ranks.filter((r) => r === rank).length > 1;
+          const rankLabel = tied ? `T${rank}` : String(rank);
           const pct = Math.round((n / maxPeople) * 100);
           return `<div class="scoreboard-row${top}">
-            <span class="scoreboard-rank">${i + 1}</span>
+            <span class="scoreboard-rank">${rankLabel}</span>
             <span class="scoreboard-name">${esc(who)}${trophy}</span>
             <span class="scoreboard-bar"><span class="scoreboard-bar-fill" style="width:${pct}%"></span></span>
             <span class="scoreboard-num">${n}</span>
