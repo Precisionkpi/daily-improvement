@@ -3277,6 +3277,10 @@
           ${basis}
         </div>`;
       }
+      // Reactions sit right under the impact card so they read as "👏 on
+      // the hours recovered" visually, even though they attach to the whole
+      // digest under the hood.
+      body += renderReactionRow(digestId);
       if (dL.wins && dL.wins.length) {
         body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsWins"))}</div><ul>${dL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       }
@@ -3293,12 +3297,13 @@
       if (dL.themes && dL.themes.length) {
         body += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${dL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
       }
+      // Monthly report has no impact card, so reactions go at the end.
+      body += renderReactionRow(digestId);
     }
 
-    // React + comment on the digest itself. Force the comments open.
+    // Comments go at the bottom regardless.
     const prevThread = STATE.openCommentThread;
     STATE.openCommentThread = digestId;
-    body += renderReactionRow(digestId);
     body += renderCommentsBlock(digestId);
     body += `</div>`;
 
@@ -3355,14 +3360,15 @@
             ${basis}
           </div>`;
         }
+        fresh += renderReactionRow(digestId);
         if (dL.wins && dL.wins.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsWins"))}</div><ul>${dL.wins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
         if (dL.open && dL.open.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsOpen"))}</div><ul>${dL.open.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
         if (dL.patterns && dL.patterns.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsPatterns"))}</div><ul>${dL.patterns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
       } else {
         if (dL.improvements && dL.improvements.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsImprovements"))}</div><ul>${dL.improvements.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.detail)}</li>`).join("")}</ul></div>`;
         if (dL.themes && dL.themes.length) fresh += `<div class="digest-detail-block"><div class="digest-detail-label">${esc(t("insightsThemes"))}</div><div class="insights-chips">${dL.themes.map((th) => `<span class="insights-chip">${esc(th)}</span>`).join("")}</div></div>`;
+        fresh += renderReactionRow(digestId);
       }
-      fresh += renderReactionRow(digestId);
       fresh += renderCommentsBlock(digestId);
       fresh += `</div>`;
       modalBody.innerHTML = fresh;
